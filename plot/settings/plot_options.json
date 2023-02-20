@@ -1,0 +1,108 @@
+[
+    {
+        "name": ".help",
+        "type": "e",
+        "short": "-h",
+        "long": "--help",
+        "default": null,
+        "section": "General options",
+        "description": "Show this help.",
+        "vignettes": "Show the list of command-line options of \\crace-plot"
+    },
+    {
+        "name": ".version",
+        "type": "e",
+        "short": "-v",
+        "long": "--version",
+        "default": null,
+        "section": "General options",
+        "description": "Show the version of crace-plot.",
+        "vignettes": "Show the version of \\crace-plot."
+    },
+    {
+        "name": "execDir",
+        "type": "p",
+        "short": "-e",
+        "long": "--exec-dir",
+        "default": null,
+        "section": "Crace results",
+        "description": "Directory where the programs will be run.",
+        "vignettes": "Directory where the crace plot executions will be performed. The default execution directory is the current directory.\n \\begin{xwarningbox}\n The execution directory must exist before executing \\crace-plot, it will not be created automatically.\n\\end{xwarningbox}"
+    },
+    {
+        "name": "numRepetitions",
+        "type": "i",
+        "short": "",
+        "long": "--num-repeatitions",
+        "default": 1,
+        "domain": "(1,999999999)",
+        "section": "Crace results",
+        "description": "The number of repetitions of the Crace results.",
+        "vignettes": "The number of repetitions of \\Crace results. This option is only availiable when \\parameter{execDir} is not None. When \\parameter{execDir} is not None, this option should be lager than 1. The default value of this parameter is 1."
+    },
+    {
+        "name": "outDir",
+        "type": "p",
+        "short": "-o",
+        "long": "--out-dir",
+        "default": ".\/",
+        "section": "Plot file",
+        "description": "Directory where the output files will be.",
+        "vignettes": "Directory where the crace plot outputs will be in. The default output directory is the current directory.\n \\begin{xwarningbox}\n The output directory can be created automatically before executing \\crace-plot.\n \\end{xwarningbox}"
+    },
+    {
+        "name": "title",
+        "type": "s",
+        "short": "-t",
+        "long": "--title",
+        "default": null,
+        "section":"Plot file",
+        "description": "The title of the output plot.",
+        "vignettes": "The title of the output plot. The default value of this option depends on the \\parameter{execDir} and the \\parameter{drawMethod}. This option is only avaliable when \\parameter{execDir} and \\parameter{drawMethod} are not None."
+    },
+    {
+        "name": "fileName",
+        "type": "p",
+        "short": "-f",
+        "long": "--file-name",
+        "default": "plot.png",
+        "section":"Plot file",
+        "description": "The name of the output plot file.",
+        "vignettes": "The name of the output plot file. The default value of this option is 'plot.png'. This option is only avaliable when \\parameter{execDir} and \\parameter{drawMethod} are not None."
+    },
+    {
+        "name": "drawMethod",
+        "type": "s",
+        "short": "-d",
+        "long": "--draw-method",
+        "default": "",
+        "domain": "(boxplot, violinplot, boxplot_test, boxplot_training)",
+        "section": "Draw plot",
+        "description": "The method chose to draw a plot for the Crace results.",
+        "vignettes": "The funtion chose to analyse the \\Crace results. If this option is not null, \\execDir must to be provided.\n When one method is chosen, the correspoding option must be True.\n "
+    },
+    {
+        "name": "numConfigurations",
+        "type": "s",
+        "short": "-n",
+        "long": "--num-configurations",
+        "default": "elites",
+        "domain": "(elites, elitist, all)",
+        "section": "Draw plot",
+        "description": "The number of configurations used to draw plot.",
+        "vignettes": "The number of configurations used to draw plot.\n\\begin{itemize}\n\\item[] \\code{elites} the top 5 (or less) elite configurations in Crace training part.\n\\item[] \\code{elitist} the elitist configuration in Crace training part. \n\\item[] \\code{all} all configurations having quality in Crace training part.\n\\end{itemize}\\begin{xwarningbox}\n The configurations from test part can not be \\code{all}.\n\\end{xwarningbox}"
+    },
+    {
+        "name": "configType",
+        "type": "s",
+        "short": "-c",
+        "long": "--config-type",
+        "default": "training",
+        "domain": "(test, training)",
+        "section": "Draw plot",
+        "description": "The type of configurations from provided Crace results.",
+        "vignettes": "The type of configurations from provided Crace results. \n\\begin{itemize}\n\\item[] \\code{test} select configurations in the test part.\n\\item[] \\code{training} select configurations in the training part.\n\\end{itemize}"
+
+    }
+
+]

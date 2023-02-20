@@ -1,0 +1,42 @@
+[
+    {
+        "name": ".check",
+        "type": "e",
+        "short": "",
+        "long": "--check",
+        "default": null,
+        "section": "General options",
+        "description": "Check parameters in cmd-line.",
+        "vignettes": "Check if the parameter definitions are correct. "
+    },
+    {
+        "name": "repeat",
+        "type": "b",
+        "short": "-r",
+        "long": "--repeat",
+        "default": 1,
+        "section":"Draw plot",
+        "description": "A boolean parameter to show if the results are repeat or not",
+        "vignettes": "Enable the use of repeatition. This option is only availiable when \\parameter{execDir} is not None. When using this option, the results from \\crace should have more than 1 repetitions with the same setting except the parameter seed. When unusing this option, the results from \\crace should have only one race."
+    },
+    {
+        "name": "elitist",
+        "type": "b",
+        "short": "",
+        "long": "--elitist",
+        "default": 0,
+        "section":"Draw plot",
+        "description": "Enable\/disable the analysis on only the elitist configuration for each repetition.",
+        "vignettes": "Enable\/disable the analysis on only the elitist configuration for each repetition. The default value is 0 (False), which means we select the top5 elite configuartions or all configurations. When it is set as 1 (True), only the elitist configuration in each repetition will be selected."
+    },
+    {
+        "name": "allConfigurations",
+        "type": "b",
+        "short": "",
+        "long": "--all-configurations",
+        "default": 0,
+        "section": "Draw plot",
+        "description": "Enable\/disable the analysis on all configurations for each repetition.",
+        "vignettes":"Enable\/disable the analysis on all configurations for each repetition. The default value is 0 (False), which means we select the top5 elite configuartions or the elitist. When it is set as 1 (True), all configurations in each repetition will be selected."
+    }
+]
