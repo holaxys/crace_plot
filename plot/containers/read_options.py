@@ -3,7 +3,7 @@ import sys
 import json
 
 from plot.errors import PlotError, OptionError, FileError, ParameterValueError
-from plot.containers.plot_option import IntegerOption, RealOption, StringOption, BooleanOption, FileOption, \
+from plot.containers.options import IntegerOption, RealOption, StringOption, BooleanOption, FileOption, \
     ExeOption, EnablerOption
 
 def option_decoder(obj):
@@ -37,7 +37,7 @@ def option_decoder(obj):
 
 def print_crace_plot_header():
     # TODO: make version automatic
-    print('#------------------------------------------------------------------------------')
+    print('\n#------------------------------------------------------------------------------')
     print('# crace plot: An implementation in python of a results analysis for Crace')
     print('# Version: 0.1')
     print('# Copyright (C) 2023')
@@ -79,14 +79,12 @@ def print_version():
     """
     Print the version information of crace-plot
     """
-    
     print_crace_plot_header()
 
 class ParseOptions:
     """
     Parse arguments from the input
     """
-        
     def from_input(arguments=None, silent = False):
         if not silent:
             options = ReadOptions(arguments=arguments)
@@ -206,6 +204,8 @@ class ReadOptions:
             path_name1 = os.path.basename(self.execDir.value)
             path_name2 = os.path.basename(os.path.dirname(self.execDir.value))
             self.title.value = self.drawMethod.value+': '+path_name2+'/'+path_name1
+
+        self.fileName.value = os.path.join(self.outDir.value, self.fileName.value)
 
         if self.configType.value == 'test' and self.numConfigurations.value == 'all':
             raise ParameterValueError("!   There is no 'allConfigurations' in test part!")

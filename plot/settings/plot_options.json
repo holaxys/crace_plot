@@ -62,7 +62,7 @@
     },
     {
         "name": "fileName",
-        "type": "p",
+        "type": "s",
         "short": "-f",
         "long": "--file-name",
         "default": "plot.png",
@@ -76,7 +76,7 @@
         "short": "-d",
         "long": "--draw-method",
         "default": "",
-        "domain": "(boxplot, violinplot, boxplot_test, boxplot_training)",
+        "domain": "(boxplot, violinplot, lineplot)",
         "section": "Draw plot",
         "description": "The method chose to draw a plot for the Crace results.",
         "vignettes": "The funtion chose to analyse the \\Crace results. If this option is not null, \\execDir must to be provided.\n When one method is chosen, the correspoding option must be True.\n "

@@ -2,147 +2,68 @@ import os
 from plot.errors import OptionError
 import re
 
-class Option:
+class Parameter:
     """
-    Class Option handles options of the configurator
-    :var general_options: List of variables associated with an Option
-       name: option name
-       type: option type (see option_types)
-       short: short flag
-       long: long flag
-       section: section (group) to which the option belongs
-       vignettes: text for the documentation of the option
-       description: general description of the option
-    :var option_types: List of option types available
-       e: enabler option (activates behaviour)
-       i: integer option
-       r: real option
-       s: string option
-       b: boolean option
-       p: file path option
-       x: script file or function to be parsed. Both should be executable
-
-    :ivar value: option value
-    :ivar default: option default value
+    Class Parameter handles options of the configurator
+    :ivar name: Parameter name
+    :ivar switch: Parameter switch
+    :ivar type: Parameter type
+    :ivar domain: List of parameter domain
+    :ivar condition: Parameter condition (logical expression)
+    :ivar priority: Parameter priority
+    :ivar depends: List of parameter names from which a parameter is conditional
     """
-
-    general_options = ["name", "type", "short", "long", "section", "vignettes", "description"]
-
-    option_types = ["e", "i", "r", "s", "b", "p", "x"]
-
-    def __init__(self):
-        """
-        Creates an Option object
-        """
-        self.value = None
-        self.default = None
+    parameter_types = ["i", "r", "c", "o", "i,log", "r,log"]
+    # In Crace plot, only "name", "type" and "domain" are used 
+    regular_parameters = ["name", "switch", "type", "domain", "condition", "priority", "depends"]
 
     @staticmethod
-    def check_general_options(obj):
+    def check_general_parameters(obj):
         """
-        checks that all options in Options.general_options are defined in obj
-        :param obj: Dictionary of options read from the json settings file
+        checks that all parameters in Parameters.general_parameters are defined in obj
+        :param obj: Dictionary of parameters read from the json settings file
         :return: none
-        :raises OptionError: if an option is not included in obj
+        :raises OptionError: if an parameter is not included in obj
         """
-        for key in Option.general_options:
+        for key in Parameter.general_parameters:
             if not (key in obj.keys()):
-                raise OptionError("All crace plot options must define attribute " + key + "!")
+                raise OptionError("All crace plot parameters must define attribute " + key + "!")
 
-    def set_general_options(self, obj):
+    def set_general_parameters(self, obj):
         """
-        Creates variables in Option.general_options list and assigns
-        the values for these variables in  obj
+        Creates variables in Parameter.general_parameters list and assigns
+        the values for these variables in obj
         :param obj: Dictionary of variable values, keys are the names
-                    in Option.general_options
+                    in Parameter.general_parameters
         """
-        for key in Option.general_options:
+        for key in Parameter.general_parameters:
             if key == "name":
-                # In current parameter definition some options have a name starting by .
+                # In current parameter definition some parameters have a name starting by .
                 # this is not allow in Python
                 setattr(self, key, obj[key].replace(".", ""))
             else:
                 setattr(self, key, obj[key].replace(".", ""))
 
-    def is_set(self):
-        return not (self.value is None)
 
-
-class IntegerOption(Option):
+class IntegerParameter(Parameter):
     """
-    class the handles integer crace plot options
-    :ivar domain: domain of the option as a two element list [lower, upper]
+    class the handles integer parameter from Crace results
+    :ivar domain: domain of the parameter as a two element list [lower, upper]
     """
     def __init__(self, obj):
         """
-        Creates an Integer Option
-        :param obj: dictionary of the option read from the json setting file
+        Creates an Integer Parameter
+        :param obj: dictionary of the parameter read from the json setting file
         """
         # add general variables
-        super().check_general_options(obj)
-        super().set_general_options(obj)
+        super().check_general_parameters(obj)
+        super().set_general_parameters(obj)
 
         # other variables
-        self.domain = self.parse_domain(obj['domain'])
-        self.default = self.parse_default(obj['default'])
-        self.value = self.default
+        self.transform = self.parse_transform(obj['transform'])
 
-    def set_value(self, value):
-        """
-        sets the value of the option and validates it
-        :param value: the value to be set
-        :return: none
-        """
-        self.value = self.parse_value(value, True)
-
-    def parse_value(self, value: str, check: bool = False):
-        """
-        parses the option value from a string
-        :param value: string that has the value of the option
-        :param check: boolean that indicates if the value must be validated
-        :return: parsed value. If the value is None or empty, the default value is returned
-        :raises OptionError: if value is not integer
-        """
-        # if value is empty return default
-        if value is None or value == "":
-            v = self.default
-        elif isinstance(value, str):
-            v = eval(value)
-            if not isinstance(v, int):
-                raise OptionError("Option" + self.name + " must be integer but has value/default: " + value)
-        else:
-            v = value
-
-        if check:
-            self.check_value(v)
-        return v
-
-    def parse_default(self, value: str):
-        """
-        parse the default value of the option, no validation is performed
-        :param value: string with the default value
-        :return: the parsed value (integer) or None if default is None or empty
-        """
-        if value is None or value == "":
-            return None
-        elif isinstance(value, str):
-            return eval(value)
-        else:
-            return value
-
-    def check_value(self, value):
-        """
-        checks a value has the correct type (integer) and is in the option domain
-        :param value: value to be checked
-        :return: none
-        :raises OptionError: if value is no integer o value is not within domain
-        """
-        if not isinstance(value, int):
-            raise OptionError("Option " + self.name + " type error value " + str(value) + " is not int")
-        elif (value < self.domain[0]) or (value > self.domain[1]):
-            raise OptionError("Option " + self.name + " value/default : " + str(value) +
-                              " is not within its integer domain (" + str(self.domain[0]) + "," +
-                              str(self.domain[1]) + ")")
+    def parse_transform(self, value: str):
+        return value
 
     def parse_domain(self, domain: str):
         """
@@ -160,14 +81,8 @@ class IntegerOption(Option):
             raise OptionError("Domain for integer option " + self.name + " is not correct : " + domain)
         return d
 
-    def is_default(self):
-        """
-        Returns True if value assigned is the default value
-        """
-        return self.value == self.default
 
-
-class RealOption(Option):
+class RealOption(Parameter):
     """
     class the handles real valued crace plot options
 
@@ -208,7 +123,7 @@ class RealOption(Option):
         if isinstance(value, str):
             v = float(eval(value))
             if not isinstance(v, float):
-                raise OptionError("Option " + self.name + " must be real but has value/default: " + value)
+                raise OptionError("! Option " + self.name + " must be real but has value/default: " + value)
 
         else:
             v = value
@@ -240,7 +155,7 @@ class RealOption(Option):
         if not isinstance(value, float):
             raise OptionError("Option " + self.name + " type error value " + str(value) + " is not float")
         elif (value < self.domain[0]) or (value > self.domain[1]):
-            raise OptionError("Option " + self.name + " value/default : " + str(value) + " is not within its real domain (" +
+            raise OptionError("! Option " + self.name + " value/default : " + str(value) + " is not within its real domain (" +
                               str(self.domain[0])+","+str(self.domain[1])+")")
 
     def parse_domain(self, domain: str):
@@ -282,7 +197,7 @@ class StringOption(Option):
         super().set_general_options(obj)
 
         # other variables
-        if obj['name'] == 'title':
+        if obj['name'] == 'title' or obj['name'] == 'fileName':
             self.domain = None
         else:
             self.domain = self.parse_domain(obj['domain'])
@@ -336,7 +251,7 @@ class StringOption(Option):
         elif self.domain is None:
             return
         elif not (value in self.domain):
-            raise OptionError("Option " + self.name + " value/default :" + str(value) + " is not within the domain (" + ",".join(self.domain) + ")")
+            raise OptionError("! Option " + self.name + " value/default: " + str(value) + " is not within the domain (" + ", ".join(self.domain) + ")")
 
     def parse_domain(self, domain: str):
         """

@@ -1,8 +1,7 @@
 import os
-import sys
+import re
 import matplotlib.pyplot as plt
 import seaborn as sns
-import pandas as pd
 
 from plot.containers.read_options import ReadOptions
 from plot.draw.data import ReadResults
@@ -21,39 +20,42 @@ class Performance:
     """
     def __init__(self, options: ReadOptions ):
 
-        # self.options = options.options
-        # self.arguments = options.arguments
         self.exec_dir = options.execDir.value
-        # self.out_dir = options.outDir.value
-        # self.drawMethod = options.drawMethod.value
+        self.out_dir = options.outDir.value
         self.num_repetitions = options.numRepetitions.value
+        
         self.title = options.title.value
         self.file_name = options.fileName.value
-        self.num_config = options.numConfigurations.value
+
+        if options.numConfigurations.value == "elites":
+            self.num_config = 5
+        elif options.numConfigurations.value == "elitist":
+            self.num_config = 1
+        else:
+            self.num_config = -1
+
+        # select exact method to draw plot via :param{drawMethod}
+        # e.g.: boxplot, violinplot
+        self.draw_method = options.drawMethod.value
 
         exp_folders = sorted([subdir for subdir, dirs, files in os.walk(self.exec_dir) \
                       for dir in dirs if dir == 'irace_log' ])
         print("# Loading Crace results..")
-        self.load = ReadResults(exp_folders)
+        self.load = ReadResults(exp_folders, options)
+
+        self.all_results, self.exp_names, self.elite_ids = self.load.load_for_perfomance()
     
-    def boxplot_test(self):
+    def boxplot(self):
         """
-        boxplot on test results
+        call the function to draw boxplot
         """
+        self.draw_boxplot(self.all_results, self.exp_names, self.elite_ids)
 
-        if self.num_config == 'elites':
-            all_results, exp_names, elite_ids = self.load.elite_configs_test()
-        elif self.num_config == 'elitist':
-            all_results, exp_names, elite_ids = self.load.elitist_test()
-
-        self.draw_boxplot(all_results, exp_names, elite_ids)
-
-    def boxplot_training(self):
+    def violinplot(self):
         """
-        boxplot on training results
+        call the function to draw violinplot
         """
-        all_results, exp_names, elite_ids = self.load.elite_configs_training()
-        self.draw_boxplot(all_results, exp_names, elite_ids)
+        self.draw_violinplot(self.all_results, self.exp_names, self.elite_ids)   
 
     def draw_boxplot(self, data, exp_names, elite_ids):
         """
@@ -62,54 +64,132 @@ class Performance:
 
         num = self.num_repetitions
 
-        print("#\n# The first 6 lines of the Crace results:")
-        print(data.head(6))
-        print("# The experiment name(s) of the Crace results you provided:")
-        print("# ", exp_names)
-        print("# The top5 elite configurations of each repetition from the Crace results you provided:")
-        for i in range(0, num):
-            print("#   {}: {}".format(exp_names[i], elite_ids[exp_names[i]]))
+        print("#\n# The Crace results:")
+        print(data)
+        print("\n# The experiment name(s) of the Crace results you provided:")
+        print("# ", re.sub('\'','',str(exp_names)))
+        print("#\n# Elite configurations from the Crace results you provided that will be analysed here :")
 
+        if self.num_config != 1:
 
-        i = 1
-        column = 1
-        row = 1
-        while i < num:
-            i += 1
-            if num%i == 0 and num/i >= column:
-                column = int(num/i)
-                row = i
-        
-        fig, axis = plt.subplots(row, column, sharey=True)
-        plt.subplots_adjust(hspace=0.3)
+            for i in range(0, num):
+                print("#   {}: {}".format(exp_names[i], elite_ids[exp_names[i]]))
 
-        n=0
-        if row > 1:
-            for i in range(0, row):
-                for j in range(0, column):
+            i = 1
+            column = 1
+            row = 1
+            while i < num:
+                i += 1
+                if num%i == 0 and num/i >= column:
+                    column = int(num/i)
+                    row = i
+            
+            fig, axis = plt.subplots(row, column, sharey=True)
+            plt.subplots_adjust(hspace=0.3)
+
+            n=0
+            if row > 1:
+                for i in range(0, row):
+                    for j in range(0, column):
+                        data_exp = data.loc[data['exp_name']==exp_names[n]]
+                        fig = sns.boxplot(
+                            x='config_id', y='quality', data=data_exp, width=0.5, fliersize=1, linewidth=0.5, palette="Purples", ax=axis[i,j])
+                        # fig = sns.swarmplot(
+                        #     x='config_id', y='quality', data=data_exp, linewidth=0.5, color=".25", size=1, ax=axis[i,j])
+                        fig.set_xticklabels(elite_ids[exp_names[n]], rotation=0, fontsize=10)
+                        fig.set_xlabel(exp_names[n])
+                        if n != i*column:
+                            fig.set_ylabel('')
+                        n += 1  
+            elif num > 1:
+                for i in range(0, column):
                     data_exp = data.loc[data['exp_name']==exp_names[n]]
-                    print(exp_names[n])
                     fig = sns.boxplot(
-                        x='config_id', y='quality', data=data_exp, width=0.5, fliersize=1, linewidth=0.5, palette="Set3", ax=axis[i,j])
-                    # fig = sns.swarmplot(
-                    #     x='config_id', y='quality', data=data_exp, linewidth=0.5, color=".25", size=1, ax=axis[i,j])
-                    fig.set_xticklabels(elite_ids[exp_names[n]], rotation=0, fontsize=10)
+                        x='config_id', y='quality', data=data_exp, width=0.5, fliersize=1, linewidth=0.5, palette="Purples", ax=axis[i])
+                    fig.set_xticklabels(elite_ids[exp_names[n]], rotation=0)
                     fig.set_xlabel(exp_names[n])
-                    if n != i*column:
-                        fig.set_ylabel('')
-                    n += 1  
-        elif num > 1:
-            for i in range(0, column):
-                data_exp = data.loc[data['exp_name']==exp_names[n]]
-                fig = sns.boxplot(
-                    x='config_id', y='quality', data=data_exp, width=0.5, fliersize=1, linewidth=0.5, palette="Set3", ax=axis[i])
-                fig.set_xticklabels(elite_ids[exp_names[n]], rotation=0)
-                fig.set_xlabel(exp_names[n])
-                n += 1
-        else:
-            fig = sns.boxplot(x='config_id', y='quality', data=data, width=0.5, fliersize=2, linewidth=0.5) 
-            fig.set_xticklabels(elite_ids[exp_names[0]], rotation=0)
-            fig.set_xlabel(exp_names[0])
+                    n += 1
+            else:
+                fig = sns.boxplot(x='config_id', y='quality', data=data, width=0.5, fliersize=2, linewidth=0.5, palette="Purples") 
+                fig.set_xticklabels(elite_ids[exp_names[0]], rotation=0)
+                fig.set_xlabel(exp_names[0])
+
+        elif self.num_config == 1:
+
+            ids = re.sub('}','',re.sub('{','',re.sub('\'','',str(elite_ids))))
+            print("#   {}".format(ids))
+
+            fig = sns.boxplot(x='exp_name', y='quality', data=data, width=0.5, fliersize=2, linewidth=0.5, palette="Purples")
+
+            fig.set_xlabel('\n{}'.format(ids))
+        
+        plot = fig.get_figure()
+        plot.savefig(self.file_name)
+
+    def draw_violinplot(self, data, exp_names, elite_ids):
+        """
+        Use data to draw a violin for the top5 elite configurations
+        """
+
+        num = self.num_repetitions
+
+        print("#\n# The Crace results:")
+        print(data)
+        print("\n# The experiment name(s) of the Crace results you provided:")
+        print("# ", re.sub('\'','',str(exp_names)))
+        print("#\n# Elite configurations from the Crace results you provided that will be analysed here :")
+
+        if self.num_config != 1:
+
+            for i in range(0, num):
+                print("#   {}: {}".format(exp_names[i], elite_ids[exp_names[i]]))
+
+            i = 1
+            column = 1
+            row = 1
+            while i < num:
+                i += 1
+                if num%i == 0 and num/i >= column:
+                    column = int(num/i)
+                    row = i
+            
+            fig, axis = plt.subplots(row, column, sharey=True)
+            plt.subplots_adjust(hspace=0.3)
+
+            n=0
+            if row > 1:
+                for i in range(0, row):
+                    for j in range(0, column):
+                        data_exp = data.loc[data['exp_name']==exp_names[n]]
+                        fig = sns.violinplot(
+                            x='config_id', y='quality', data=data_exp, inner="point", width=0.5, linewidth=0.5, palette="Purples", ax=axis[i,j])
+                        fig.set_xticklabels(elite_ids[exp_names[n]], rotation=0, fontsize=10)
+                        fig.set_xlabel(exp_names[n])
+                        if n != i*column:
+                            fig.set_ylabel('')
+                        n += 1  
+            elif num > 1:
+                for i in range(0, column):
+                    data_exp = data.loc[data['exp_name']==exp_names[n]]
+                    fig = sns.violinplot(
+                        x='config_id', y='quality', data=data_exp, inner="point", width=0.5, linewidth=0.5, palette="Purples", ax=axis[i])
+                    fig.set_xticklabels(elite_ids[exp_names[n]], rotation=0)
+                    fig.set_xlabel(exp_names[n])
+                    n += 1
+            else:
+                fig = sns.violinplot(x='config_id', y='quality', data=data, inner="point", width=0.5, linewidth=0.5, palette="Purples")
+                fig = sns.swarmplot(x='config_id', y='quality', data=data, size=3) 
+                fig.set_xticklabels(elite_ids[exp_names[0]], rotation=0)
+                fig.set_xlabel(exp_names[0])
+
+        elif self.num_config == 1:
+
+            ids = re.sub('}','',re.sub('{','',re.sub('\'','',str(elite_ids))))
+            print("#   {}".format(ids))
+
+            fig = sns.violinplot(x='exp_name', y='quality', data=data, inner=None, width=0.5, linewidth=0.5, palette="Purples")
+            fig = sns.swarmplot(x='exp_name', y='quality', data=data, size=3, palette='pink')
+            fig.set_xlabel('\n{}'.format(ids))
         
         plot = fig.get_figure()
         plot.savefig(self.file_name)

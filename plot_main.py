@@ -16,6 +16,21 @@ def start_cmdline(arguments=None):
 
     args = arguments[1:]
 
+    _check_args(args=args)
+
+    try:
+        Reader = rd.ParseOptions.from_input(arguments)
+
+        if Reader.execDir.value is not None and Reader.drawMethod.value is not None:
+            DrawPlot(Reader)
+
+    except Exception as e:
+        print("! There was an error while executing crace plot:")
+        print(e)
+        raise e
+
+def _check_args(args):
+
     # check for number of imputs
     if len(args) < 1:
         print("! At least an option must be provided to load crace-plot options")
@@ -30,19 +45,7 @@ def start_cmdline(arguments=None):
     # check for version command
     if "-v" in args or "--version" in args:
         rd.print_version()
-        sys.exit()
-
-    try:
-        Reader = rd.ParseOptions.from_input(arguments)
-
-        if Reader.execDir.value is not None and Reader.drawMethod.value is not None:
-            DrawPlot(Reader)
-
-    except Exception as e:
-        print("! There was an error while executing crace plot:")
-        print(e)
-        raise e
-
+        sys.exit()  
 
 if __name__ == '__main__':
     arguments = sys.argv

@@ -1,8 +1,10 @@
 import os
 import sys
+import traceback
 
 from plot.containers.read_options import ReadOptions
 from plot.draw.performance import Performance
+from plot.draw.config_data import Parameters
 
 class DrawPlot:
     """
@@ -11,19 +13,22 @@ class DrawPlot:
     """
     def __init__(self, reader: ReadOptions ) -> None:
 
-        # self.options = reader.options
-        # self.arguments = reader.arguments
-        # self.exec_dir = reader.execDir.value
-        # self.out_dir = reader.outDir.value
+        self.out_dir = reader.outDir.value
         self.drawMethod = reader.drawMethod.value
-        # self.num_repetitions = reader.numRepetitions.value
-        # self.title = reader.title.value
-        # self.file_name = reader.fileName.value
 
-        if self.drawMethod in ("boxplot_test", "boxplot_training"):
-            load = Performance(reader)
+        try:
+            if self.drawMethod in ('boxplot', 'violinplot'):
+                load = Performance(reader)
+            elif self.drawMethod in ('lineplot'):
+                load = Parameters(reader)
             getattr(load, self.drawMethod)()
 
-    def run(self):
-        
-        print("run")
+            print('#\n# Succeeded! ')
+            print('# Now you can check the plot file in', self.out_dir)
+            print('#------------------------------------------------------------------------------')
+        except:
+            print("#\n! There was an error: ")
+            err = traceback.format_exc()
+            print(err)
+            sys.exit()
+
