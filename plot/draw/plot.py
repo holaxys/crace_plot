@@ -19,7 +19,7 @@ class DrawPlot:
         try:
             if self.drawMethod in ('boxplot', 'violinplot'):
                 load = Performance(reader)
-            elif self.drawMethod in ('lineplot'):
+            elif self.drawMethod in ('lineplot', 'parallelplot'):
                 load = Parameters(reader)
             getattr(load, self.drawMethod)()
 

@@ -282,7 +282,7 @@ class StringOption(Option):
         super().set_general_options(obj)
 
         # other variables
-        if obj['name'] == 'title' or obj['name'] == 'fileName':
+        if obj['name'] in ('title', 'fileName', 'keyParameter'):
             self.domain = None
         else:
             self.domain = self.parse_domain(obj['domain'])

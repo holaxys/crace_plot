@@ -22,8 +22,10 @@ class ReadResults:
             self.num_config = 5
         elif options.numConfigurations.value == "elitist":
             self.num_config = 1
-        else:
+        elif options.numConfigurations.value == "all":
             self.num_config = -1
+        elif options.numConfigurations.value == "else":
+            self.num_config = options.elseNumConfigs.value
 
         self.config_type = options.configType.value
 
@@ -56,8 +58,14 @@ class ReadResults:
 
         parameters = self.parse_parameters()
 
-        if self.num_config != -1:
-            all_configs, config_ids, elite_ids = self.elite_configs() if self.num_config == 5 else self.elitist_config()
+        if self.num_config == 1:
+            all_configs, config_ids, elite_ids = self.elitist_config() 
+        elif self.num_config == 5:
+            all_configs, config_ids, elite_ids = self.elite_configs()
+        elif self.num_config == -1:
+            all_configs, config_ids, elite_ids = self.all_configs()
+        else:
+            all_configs, config_ids, elite_ids = self.else_configs()
         
         return all_configs, config_ids, elite_ids, parameters
 
@@ -78,19 +86,19 @@ class ReadResults:
             with open(os.path.join(folder, self.elite_log), "r") as f1:
                 for line in f1:
                     if i > 0 and i <= self.num_config:
-                        elite_id = line.split(',')[-2]
+                        elite_id = int(line.split(',')[-2])
                         elite_ids[name].append(elite_id)
                     i += 1
             f1.close()
-            tmp = {}
+            tmp = pd.DataFrame()
             with open(os.path.join(folder, self.exps_fin), "r") as f2:
                 for line in f2:
                     line_results = json.loads(line)
-                    current_id = str(line_results["configuration_id"])
+                    current_id = int(line_results["configuration_id"])
                     current_quality = line_results["quality"]
                     if current_id in elite_ids[name]:
-                        tmp = {'exp_name': name, 'config_id': current_id, 'quality': current_quality}
-                        all_data = all_data.append(tmp, ignore_index=True)
+                        tmp = pd.DataFrame([[name, current_id, current_quality]], columns=['exp_name', 'config_id', 'quality'])
+                        all_data = pd.concat([all_data, tmp], ignore_index=True)
             f2.close
 
         return all_data, exp_names, elite_ids
@@ -113,20 +121,20 @@ class ReadResults:
             with open(os.path.join(folder, self.elite_log), "r") as f1:
                 for line in f1:
                     if i > 0 and i <= self.num_config :
-                        elite_id = line.split(',')[-2]
+                        elite_id = int(line.split(',')[-2])
                         elitist_ids['elitist'].append(elite_id)
                         elite_ids[name].append(elite_id)
                     i += 1
             f1.close()
-            tmp = {}
+            tmp = pd.DataFrame()
             with open(os.path.join(folder, self.exps_fin), "r") as f2:
                 for line in f2:
                     line_results = json.loads(line)
-                    current_id = str(line_results["configuration_id"])
+                    current_id = int(line_results["configuration_id"])
                     current_quality = line_results["quality"]
                     if current_id in elite_ids[name]:
-                        tmp = {'exp_name': name, 'config_id': current_id, 'quality': current_quality}
-                        all_data = all_data.append(tmp, ignore_index=True)
+                        tmp = pd.DataFrame([[name, current_id, current_quality]], columns=['exp_name', 'config_id', 'quality'])
+                        all_data = pd.concat([all_data, tmp], ignore_index=True)
             f2.close
 
         return all_data, exp_names, elitist_ids
@@ -151,25 +159,26 @@ class ReadResults:
             with open(os.path.join(folder, self.elite_log)) as f1:
                 for line in f1:
                     if i > 0 and i <= self.num_config:
-                        elite_id = line.split(',')[-2]
+                        elite_id = int(line.split(',')[-2])
                         elite_ids[name].append(elite_id)
                     i += 1
             f1.close()
 
-            t1 = t2 = {}
+            tmp = t1 = t2 = pd.DataFrame()
             # read config_log file to get the details of each elitist configuration 
             with open(os.path.join(folder, self.config_log), 'r') as f2:
                 for line in f2:
-                    config_id = line.split(',')[0]
+                    config_id = int(line.split(',')[0])
                     if config_id not in config_ids and config_id in elite_ids[name]:
                         config_ids.append(config_id)
                         params = re.sub('"','',line.split('{')[1].split('}')[0])
-                        t1['config_id'] = config_id
+                        t1 = pd.DataFrame([config_id], columns=['config_id'])
+                        t2 = pd.DataFrame([name], columns=['exp_name'])
                         for pa in params.split(', '):
-                            t1[pa.split(': ')[0]] = pa.split(': ')[1]
-                        t2 = {'exp_name': name, 'config_id': config_id}
-                        t2.update(t1)
-                        all_configs = all_configs.append(t2, ignore_index=True)
+                            tmp = pd.DataFrame([pa.split(': ')[1]], columns=[pa.split(': ')[0]])
+                            t1 = pd.concat([t1, tmp], axis=1)
+                        t2 = pd.concat([t2, t1], axis=1)
+                        all_configs = pd.concat([all_configs, t2], ignore_index=True)
             f2.close()    
 
         return all_configs, exp_names, elite_ids
@@ -190,33 +199,145 @@ class ReadResults:
             name = os.path.basename(folder)
             exp_names.append(name)
             elite_ids[name] = []
+            config_ids = []
             i = 0
             # read elite_log file to get the elitist configuration id
             with open(os.path.join(folder, self.elite_log)) as f1:
                 for line in f1:
                     if i == 1:
-                        elite_id = line.split(',')[-2]
+                        elite_id = int(line.split(',')[-2])
                         elite_ids[name].append(elite_id)
                         elitist_ids['elitist'].append(elite_id)
                     i += 1
             f1.close()
 
             # read config_log file to get the details of each elitist configuration 
-            t1 = t2 = {}
+            tmp = t1 = t2 = pd.DataFrame()
             with open(os.path.join(folder, self.config_log), 'r') as f2:
                 for line in f2:
-                    config_id = line.split(',')[0]
-                    if config_id in elite_ids[name]:
+                    config_id = int(line.split(',')[0])
+                    if config_id not in config_ids and config_id in elite_ids[name]:
+                        config_ids.append(config_id)
                         params = re.sub('"','',line.split('{')[1].split('}')[0])
-                        t1['config_id'] = config_id
+                        t1 = pd.DataFrame([config_id], columns=['config_id'])
+                        t2 = pd.DataFrame([name], columns=['exp_name'])
                         for pa in params.split(', '):
-                            t1[pa.split(': ')[0]] = pa.split(': ')[1]
-                        t2 = {'exp_name': name, 'config_id': config_id}
-                        t2.update(t1)
-                        all_configs = all_configs.append(t2, ignore_index=True)
-            f2.close()  
+                            tmp = pd.DataFrame([pa.split(': ')[1]], columns=[pa.split(': ')[0]])
+                            t1 = pd.concat([t1, tmp], axis=1)
+                        t2 = pd.concat([t2, t1], axis=1)
+                        all_configs = pd.concat([all_configs, t2], ignore_index=True)
+            f2.close()
 
         return all_configs, exp_names, elitist_ids
+
+    def all_configs(self):
+        """
+        Read the at least top 5 configurations from the provided Crace results
+        """
+
+        # parameters need to be returned
+        all_configs = pd.DataFrame()
+        exp_names = []
+        elite_ids = {}
+
+        for folder in self.folders:
+            name = os.path.basename(folder)
+            exp_names.append(name)
+            elite_ids[name] = []
+            config_ids = []
+            i = 0
+            # read elite_log file to get the elitist configuration id
+            with open(os.path.join(folder, self.elite_log)) as f1:
+                for line in f1:
+                    if i > 0 and i <= 5:
+                        elite_id = int(line.split(',')[-2])
+                        elite_ids[name].append(elite_id)
+                    i += 1
+            f1.close()
+
+            tmp = t1 = t2 = pd.DataFrame()
+            # read config_log file to get the details of each elitist configuration 
+            with open(os.path.join(folder, self.config_log), 'r') as f2:
+                for line in f2:
+                    config_id = int(line.split(',')[0])
+                    if config_id not in config_ids:
+                        config_ids.append(config_id)
+                        params = re.sub('"','',line.split('{')[1].split('}')[0])
+                        t1 = pd.DataFrame([config_id], columns=['config_id'])
+                        t2 = pd.DataFrame([name], columns=['exp_name'])
+                        for pa in params.split(', '):
+                            tmp = pd.DataFrame([pa.split(': ')[1]], columns=[pa.split(': ')[0]])
+                            t1 = pd.concat([t1, tmp], axis=1)
+                        t2 = pd.concat([t2, t1], axis=1)
+                        all_configs = pd.concat([all_configs, t2], ignore_index=True)
+            f2.close()    
+
+        return all_configs, exp_names, elite_ids
+
+    def else_configs(self):
+        """
+        Read the at least top 5 configurations from the provided Crace results
+        """
+
+        # parameters need to be returned
+        all_configs = pd.DataFrame()
+        exp_names = []
+        elite_ids = {}
+
+        for folder in self.folders:
+            name = os.path.basename(folder)
+            exp_names.append(name)
+            elite_ids[name] = []
+            config_ids = []
+            i = 0
+            # read elite_log file to get the elitist configuration id
+            with open(os.path.join(folder, self.elite_log)) as f1:
+                for line in f1:
+                    if i > 0 and i <= self.num_config:
+                        elite_id = int(line.split(',')[-2])
+                        elite_ids[name].append(elite_id)
+                    i += 1
+            f1.close()
+
+            # firstly read the elite configurations
+            tmp = t1 = t2 = pd.DataFrame()
+            i = 0
+            # read config_log file to get the details of each elitist configuration 
+            with open(os.path.join(folder, self.config_log), 'r') as f2:
+                for line in f2:
+                    config_id = int(line.split(',')[0])
+                    if config_id not in config_ids and i < len(elite_ids[name]) and config_id in elite_ids[name]:
+                        i += 1
+                        config_ids.append(config_id)
+                        params = re.sub('"','',line.split('{')[1].split('}')[0])
+                        t1 = pd.DataFrame([config_id], columns=['config_id'])
+                        t2 = pd.DataFrame([name], columns=['exp_name'])
+                        for pa in params.split(', '):
+                            tmp = pd.DataFrame([pa.split(': ')[1]], columns=[pa.split(': ')[0]])
+                            t1 = pd.concat([t1, tmp], axis=1)
+                        t2 = pd.concat([t2, t1], axis=1)
+                        all_configs = pd.concat([all_configs, t2], ignore_index=True)
+            f2.close()
+
+            # secondly read the other configurations not in the elites list
+            with open(os.path.join(folder, self.config_log), 'r') as f3:
+                for line in f3:
+                    config_id = int(line.split(',')[0])
+                    if config_id not in config_ids and i < self.num_config:
+                        i += 1
+                        config_ids.append(config_id)
+                        params = re.sub('"','',line.split('{')[1].split('}')[0])
+                        t1 = pd.DataFrame([config_id], columns=['config_id'])
+                        t2 = pd.DataFrame([name], columns=['exp_name'])
+                        for pa in params.split(', '):
+                            tmp = pd.DataFrame([pa.split(': ')[1]], columns=[pa.split(': ')[0]])
+                            t1 = pd.concat([t1, tmp], axis=1)
+                        t2 = pd.concat([t2, t1], axis=1)
+                        all_configs = pd.concat([all_configs, t2], ignore_index=True)
+            f3.close()
+
+
+        return all_configs, exp_names, elite_ids
 
     def parse_parameters(self):
         """
