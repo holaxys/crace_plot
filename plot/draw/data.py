@@ -321,9 +321,13 @@ class ReadResults:
 
             # secondly read the other configurations not in the elites list
             with open(os.path.join(folder, self.config_log), 'r') as f3:
-                for line in f3:
+                lines = f3.readlines()
+                print(len(lines))
+                n = -1
+                while i < self.num_config:
+                    line = lines[n]
                     config_id = int(line.split(',')[0])
-                    if config_id not in config_ids and i < self.num_config:
+                    if config_id not in config_ids:
                         i += 1
                         config_ids.append(config_id)
                         params = re.sub('"','',line.split('{')[1].split('}')[0])
@@ -334,8 +338,8 @@ class ReadResults:
                             t1 = pd.concat([t1, tmp], axis=1)
                         t2 = pd.concat([t2, t1], axis=1)
                         all_configs = pd.concat([all_configs, t2], ignore_index=True)
+                    n -= 1
             f3.close()
-
 
         return all_configs, exp_names, elite_ids
 

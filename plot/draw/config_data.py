@@ -3,20 +3,15 @@
 import os
 import re
 import copy
-import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
+import pandas as pd
 import seaborn as sns
 sns.set(rc={'figure.figsize':(11.7,8.27)})
 
 # import plotly as py
 import plotly.graph_objects as go
-# py.offline.init_notebook_mode(connected=True)
-
 import plotly.express as px
-
-# from pyecharts import options as opts
-# from pyecharts.charts import Page, Parallel
+import matplotlib.pyplot as plt
 
 from plot.containers.read_options import ReadOptions
 from plot.draw.data import ReadResults
@@ -41,6 +36,9 @@ class Parameters:
         self.title = options.title.value
         self.file_name = options.fileName.value
         self.key_param = options.keyParameter.value
+        self.matrix_param = options.matrixParameters.value
+        self.catx = options.catx.value
+        self.caty = options.caty.value
 
         if options.numConfigurations.value == "elites":
             self.num_config = 5
@@ -61,130 +59,62 @@ class Parameters:
         self.load = ReadResults(exp_folders, options)
 
         self.all_results, self.exp_names, self.elite_ids, self.parameters = self.load.load_for_configs_data()
-    
-    def lineplot(self):
-        """
-        call the function to draw boxplot
-        """
-        self.draw_lineplot(self.all_results, self.exp_names, self.elite_ids, self.parameters)
-
-    def parallelplot(self):
-        """
-        call the function to draw boxplot
-        """
-        self.draw_parallelplot(self.all_results, self.exp_names, self.elite_ids, self.parameters)
-
-    def draw_lineplot(self, data, exp_names, elite_ids, parameters):
-        """
-        Use data to draw a boxplot for the top5 elite configurations
-        """
-
-        num = self.num_repetitions
 
         print("#\n# The Crace results:")
-        print(data)
+        print(self.all_results,)
         print("#\n# The experiment name(s) of the Crace results you provided:")
-        print("# ", re.sub('\'','',str(exp_names)))
-        print("#\n# Elite configurations from the Crace results you provided that will be analysed here :")
+        print("# ", re.sub('\'','',str(self.exp_names)))
+        print("#")
 
-        data_new = data.copy()
-        data_new.drop(columns=['exp_name', 'config_id'], inplace=True)
-
-        map_dic = {}
-        new_parameters = copy.deepcopy(parameters)
-        for name in parameters.keys():
-            if parameters[name]['type'] == 'c':
-                i = 0
-                map_dic[name] = {}
-                new_parameters[name+'_id'] = {}
-                new_parameters[name+'_id']['domain'] = [0]
-                new_parameters.pop(name, None)
-                for a in parameters[name]['domain']:
-                    map_dic[name][a] = i
-                    # new_parameters[name+'_id']['domain'].append(i)
-                    i += 1
-                new_parameters[name+'_id']['domain'].append(i-1)
-                data_new[name+'_id'] = data_new[name].map(map_dic[name])
-                data_new.drop(columns=name, inplace=True)
-        new_parameters.pop('dlb_id', None)
-        new_parameters.pop('nnls', None)
-        new_parameters.pop('elitistants', None)
-        new_parameters.pop('rasrank', None)
-        data_new.drop(columns=['nnls', 'dlb_id', 'elitistants', 'rasrank'], inplace=True)
-        print(data_new)
-        # print(parameters)
-        # print(new_parameters)
-
-        if self.num_config != -1:
-            ids = re.sub('}','',re.sub('{','',re.sub('\'','',str(elite_ids))))
-            print("#   {}".format(ids))
-
-            plot_dict = []
-            each_dict = {}
-            for name in new_parameters.keys():
-                each_dict = dict(
-                    range = new_parameters[name]['domain'],
-                    label = name, 
-                    values = data_new[name]
-                )
-                plot_dict.append(each_dict)
-             
-            print('---------------------------------------------------------------\n')
-
-            fig = go.Figure(data=
-            go.Parcoords(
-                line = dict(color = data_new['algorithm_id'],
-                            colorscale = 'Tealrose',
-                            showscale = True,
-                            cmin = -200,
-                            cmax = 200),
-            #     dimensions = list([
-            #         dict(range = [0.0, 5.0],
-            #             label = 'alpha', values = data_new['alpha']),
-            #         dict(range = [0.0, 10.0],
-            #              label = 'beta', values = data_new['beta']),
-            #         dict(range = [0.01, 1.0], 
-            #              label = 'rho', values = data_new['rho']),
-            #         dict(range = [5, 100],
-            #              label = 'ants', values = data_new['ants']),
-            #         dict(range = [0.0, 1.0],
-            #              label = 'q0', values = data_new['q0']),
-            #         # dict(range = [1, 100], 
-            #         #     label = 'rasrank', values = data_new['rasrank']),
-            #         dict(range = [0,4],
-            #             label = 'algorithm', values = data_new['algorithm_id']),
-            #         dict(range = [0, 3],
-            #              label = 'localsearch', values = data_new['localsearch_id'])
-            #     ])
-            # ))
-                dimensions = list([line for line in plot_dict])
-            ))
-            fig.show()
-
-    def draw_parallelplot(self, data, exp_names, elite_ids, parameters):
+    def parallelcoord(self):
         """
-        Use data to draw a boxplot for the top5 elite configurations
+        call the function to draw parallel coord plot
+        """
+        self.draw_parallelcoord(self.all_results, self.exp_names, self.elite_ids, self.parameters)
+
+    def parallelcat(self):
+        """
+        call the function to draw parallel categorical plot
+        """
+        self.draw_parallelcat(self.all_results, self.exp_names, self.elite_ids, self.parameters)
+
+    def piechart(self):
+        """
+        call the function to draw pie chart
+        """
+        self.draw_piechart(self.all_results, self.exp_names, self.parameters)
+
+    def scattermatrix(self):
+        """
+        call the function to draw scatter matrix plot
+        """
+        self.draw_scattermatrix(self.all_results, self.exp_names, self.parameters)
+
+    def draw_parallelcoord(self, data, exp_names, elite_ids, parameters):
+        """
+        Use data to draw a parallel coord plot for the provided Crace results
         """
 
         num = len(data)
 
-        print("#\n# The Crace results:")
-        print(data)
-        print("#\n# The experiment name(s) of the Crace results you provided:")
-        print("# ", re.sub('\'','',str(exp_names)))
-        print("#")
-
         data_new = data.copy()
-
-        parameters['exp_name'] = {}
-        parameters['exp_name']['type'] = 'c'
-        parameters['exp_name']['domain'] = exp_names
+        keyParam = ""
 
         if self.num_repetitions == 1:
             parameters['config_id'] = {}
             parameters['config_id']['type'] = 'i'
-            parameters['config_id']['domain'] = [1, int(data['config_id'].max())]
-            self.key_param = 'config_id'
+            parameters['config_id']['domain'] = [int(data['config_id'].min()), int(data['config_id'].max())]
+            keyParam = 'config_id'
+        else:
+            parameters['exp_name'] = {}
+            parameters['exp_name']['type'] = 'c'
+            parameters['exp_name']['domain'] = exp_names
+            keyParam = 'exp_name'
+
+        if self.key_param not in ('null', None):
+            keyParam = self.key_param
+        else:
+            keyParam = keyParam 
 
         new_parameters = []
         new_parameters = copy.deepcopy(parameters)
@@ -225,92 +155,290 @@ class Parameters:
         print("#\n# The new Crace results:")
         print(data_new)
 
-        if self.num_config != -1:
-            print("#\n# Elite configurations from the Crace results you provided that will be analysed here :")
-            # ids = re.sub('}','',re.sub('{','',re.sub('\'','',str(elite_ids))))
-            for a in elite_ids.keys():
-                print("#   {}: {}".format(a, elite_ids[a]))
+        print("#\n# Elite configurations from the Crace results you provided that will be analysed here :")
+        for a in elite_ids.keys():
+            print("#   {}: {}".format(a, elite_ids[a]))
 
-            plot_dict = []
-            each_dict = {}
-            for name in new_parameters.keys():
-                if new_parameters[name]['type'] != 'c':
-                    each_dict = dict(
-                        range = new_parameters[name]['domain'],
-                        label = name, 
-                        values = data_new[name]
-                    )
-                else:
-                    each_dict = dict(
-                        tickvals = new_parameters[name]['domain'],
-                        ticktext = parameters[name]['domain'],
-                        label = name, 
-                        values = data_new[name]
-                    )
-                plot_dict.append(each_dict)
-            
-            keyParam = ""
-            cmax = 0
-            if self.key_param not in ('null', None):
-                keyParam = self.key_param
+        plot_dict = []
+        each_dict = {}
+        for name in new_parameters.keys():
+            if new_parameters[name]['type'] != 'c':
+                each_dict = dict(
+                    range = new_parameters[name]['domain'],
+                    label = name, 
+                    values = data_new[name]
+                )
             else:
-                keyParam = 'exp_name' 
-            if parameters[keyParam]['type'] != 'c':
-                cmax = parameters[keyParam]['domain'][1]
-            else:
-                cmax = len(parameters[keyParam]['domain'])
-            fig = go.Figure(data=
-            go.Parcoords(
-                line = dict(color = data_new[keyParam],
-                            colorscale = 'Tealrose',
-                            showscale = True,
-                            cmin = 0,
-                            cmax = cmax),
-                dimensions = list([line for line in plot_dict])
-            ))
-            fig.show()
-
+                each_dict = dict(
+                    tickvals = new_parameters[name]['domain'],
+                    ticktext = parameters[name]['domain'],
+                    label = name, 
+                    values = data_new[name]
+                )
+            plot_dict.append(each_dict)
+        
+        cmin = 0
+        cmax = 0
+        
+        if parameters[keyParam]['type'] != 'c':
+            cmin = parameters[keyParam]['domain'][0]
+            cmax = parameters[keyParam]['domain'][1]
+            data_key = pd.to_numeric(data_new[keyParam])
         else:
-            print("#\n# Elite configurations from the Crace results you provided that will be analysed here :")
-            # ids = re.sub('}','',re.sub('{','',re.sub('\'','',str(elite_ids))))
-            for a in elite_ids.keys():
-                print("#   {}: {}".format(a, elite_ids[a]))
+            cmin = 0
+            cmax = len(parameters[keyParam]['domain'])
+            data_key = data_new[keyParam]
 
-            plot_dict = []
-            each_dict = {}
-            for name in new_parameters.keys():
+        fig = go.Figure(data=
+        go.Parcoords(
+            line = dict(color = data_key,
+                        colorscale = 'Tealrose',
+                        showscale = True,
+                        cmin = cmin,
+                        cmax = cmax),
+            dimensions = list([line for line in plot_dict])
+        ))
+        fig.show()
+
+    def draw_parallelcat(self, cat_data, exp_names, elite_ids, parameters):
+        """
+        Use data to draw a parallel categorical plot for the provided Crace results
+        """
+
+        num = len(cat_data)
+
+        if self.num_repetitions == 1:
+            parameters['config_id'] = {}
+            parameters['config_id']['type'] = 'i'
+            parameters['config_id']['domain'] = [int(cat_data['config_id'].min()), int(cat_data['config_id'].max())]
+            keyParam = 'config_id'
+        else:
+            parameters['exp_name'] = {}
+            parameters['exp_name']['type'] = 'c'
+            parameters['exp_name']['domain'] = exp_names
+            keyParam = 'exp_name'
+
+        new_parameters = []
+        new_parameters = copy.deepcopy(parameters)
+
+        col1 = cat_data.count() == 0
+        for i in range(len(col1)):
+            name = col1.index[i]
+            per = list(cat_data[name]).count('null')/float(num)
+            if col1[i]:
+                print("! WARNING: all values in {} are NaN, it will be deleted for the plot!".format(name) )
+                new_parameters.pop(col1.index[i])
+            if per > 0:
                 if new_parameters[name]['type'] != 'c':
-                    each_dict = dict(
-                        range = new_parameters[name]['domain'],
-                        label = name, 
-                        values = data_new[name]
-                    )
+                    old = copy.deepcopy(new_parameters[name]['domain'])
+                    new_parameters[name]['domain'][0] = old[0]-1
+                    print("! WARNING: 'null' values in {} has been replaced by {}.".format(name, old[0]-1))
+                    cat_data[name].replace('null', old[0]-1, inplace=True)
                 else:
-                    each_dict = dict(
-                        tickvals = new_parameters[name]['domain'],
-                        ticktext = parameters[name]['domain'],
-                        label = name, 
-                        values = data_new[name]
-                    )
-                plot_dict.append(each_dict)
+                    old = copy.deepcopy(parameters[name]['domain'])
+                    new_parameters[name]['domain'].append(len(old))
+                    parameters[name]['domain'].append('null')
+                    print("! WARNING: {} has 'null' values.".format(name))
 
-            keyParam = ""
-            cmax = 0
-            if self.key_param not in ('null', None):
-                keyParam = self.key_param
+
+        print("#\n# The new parameters:")
+        print(new_parameters.keys())
+
+        print("#\n# Elite configurations from the Crace results you provided that will be analysed here :")
+        for a in elite_ids.keys():
+            print("#   {}: {}".format(a, elite_ids[a]))
+
+        plot_dict = []
+        each_dict = {}
+        for name in new_parameters.keys():
+            if new_parameters[name]['type'] == 'c':
+                each_dict = dict(
+                    label = name, 
+                    values = cat_data[name]
+                )
+                plot_dict.append(each_dict)
+        
+        color = np.zeros(len(plot_dict), dtype='uint8')
+        colorscale = [[0, 'gray'], [1, 'firebrick']]
+        
+        # Build figure as FigureWidget
+        fig = go.FigureWidget(data=[
+        go.Scatter(
+            x = cat_data[self.catx],
+            y = cat_data[self.caty],
+            marker={'color': 'gray'},
+            mode='markers',
+            selected={'marker': {'color': 'firebrick'}},
+            unselected={'marker': {'opacity': 0.3}}
+        ), 
+        go.Parcats(
+                domain={'y': [0, 0.4]}, 
+                dimensions=list([line for line in plot_dict]),
+                line={'colorscale': colorscale, 'cmin': 0, 'cmax': 1, 'color': color, 'shape': 'hspline'}),
+        ])
+
+        fig.update_layout(
+            height=1000, 
+            xaxis={'title': self.catx},
+            yaxis={'title': self.caty, 'domain': [0.6, 1]},
+            dragmode='lasso', 
+            hovermode='closest',
+            overwrite=True)
+
+        # Update color callback
+        def update_color(trace, points, state):
+            # Update scatter selection
+            fig.data[0].selectedpoints = points.point_inds
+
+            # Update parcats colors
+            new_color = color
+            new_color[points.point_inds] = 1
+            fig.data[1].line.color = new_color
+
+        # Register callback on scatter selection...
+        fig.data[0].on_selection(update_color)
+        # and parcats click
+        fig.data[1].on_click(update_color)
+
+        fig.show()
+
+    def draw_piechart(self, pie_data, exp_names, parameters):
+        """
+        Use pie_data to draw a pie plot for the provided Crace results
+        """
+
+        num = len(pie_data)
+
+        data = copy.deepcopy(pie_data)
+        new_parameters = copy.deepcopy(parameters)
+
+        col1 = data.count() == 0
+        for i in range(len(col1)):
+            name = col1.index[i]
+            per = list(data[name]).count('null')/float(num)
+            if col1[i]:
+                print("! WARNING: all values in {} are NaN, it will be deleted for the plot!".format(name) )
+                new_parameters.pop(col1.index[i])
+            if per > 0:
+                if new_parameters[name]['type'] != 'c':
+                    old = copy.deepcopy(new_parameters[name]['domain'])
+                    new_parameters[name]['domain'][0] = old[0]-1
+                    print("! WARNING: 'null' values in {} has been replaced by {}.".format(name, old[0]-1))
+                    data[name].replace('null', old[0]-1, inplace=True)
+                else:
+                    old = copy.deepcopy(parameters[name]['domain'])
+                    new_parameters[name]['domain'].append(len(old))
+                    parameters[name]['domain'].append('null')
+                    print("! WARNING: {} has 'null' values.".format(name))
+
+
+        subgroup = {}
+        for name in new_parameters.keys():
+            subgroup[name] = {}
+            subgroup[name]['names'] = []
+            subgroup[name]['props'] = []
+            if new_parameters[name]['type'] != 'c':
+                data[name] = pd.to_numeric(data[name])
+                left = parameters[name]['domain'][0]
+                right = parameters[name]['domain'][1]
+                tmp = (left+right)/3
+                sub1 = '[{:.2f}, {:.2f}]'.format(left, tmp)
+                sub2 = '[{:.2f}, {:.2f}]'.format(tmp, 2*tmp)
+                sub3 = '[{:.2f}, {:.2f}]'.format(2*tmp, right)
+
+                subgroup[name]['names'].append(sub1)
+                s_bool = ((data[name] >= left) & (data[name] < tmp))
+                subgroup[name]['props'].append(s_bool.sum())
+
+                subgroup[name]['names'].append(sub2)
+                s_bool = ((data[name] >= tmp) & (data[name] < 2*tmp))
+                subgroup[name]['props'].append(s_bool.sum())
+
+                subgroup[name]['names'].append(sub3)
+                s_bool = ((data[name] >= 2*tmp) & (data[name] <= right))
+                subgroup[name]['props'].append(s_bool.sum())
+
+                if sum(subgroup[name]['props']) < len(data[name]):
+                    subgroup[name]['names'].append('null')
+                    s_bool = (data[name] < left)
+                    subgroup[name]['props'].append(s_bool.sum())
+                
             else:
-                keyParam = 'exp_name' 
-            if parameters[keyParam]['type'] != 'c':
-                cmax = parameters[keyParam]['domain'][1]
-            else:
-                cmax = len(parameters[keyParam]['domain'])
-            fig = go.Figure(data=
-            go.Parcoords(
-                line = dict(color = data_new[keyParam],
-                            colorscale = 'Tealrose',
-                            showscale = True,
-                            cmin = 0,
-                            cmax = cmax),
-                dimensions = list([line for line in plot_dict])
-            ))
-            fig.show()
+                for x in parameters[name]['domain']:
+                    subgroup[name]['names'].append(x)
+                    s_bool = data[name] == x
+                    subgroup[name]['props'].append(s_bool.sum())
+
+        num = len(new_parameters.keys())
+        labels = [self.title]
+        values = [0]
+        parents = [""]
+        for name in new_parameters.keys():
+            i = 0
+            labels.append(name)
+            values.append(self.count_values(pie_data[name]))
+            parents.append(self.title)
+            for label in subgroup[name]['names']:
+                labels.append(label)
+                values.append(subgroup[name]['props'][i])
+                parents.append(name)
+                i += 1
+        # print(values, '\n')
+        # print(labels, '\n')
+        # print(parents)
+
+        fig = go.Figure(go.Sunburst(
+            labels = labels,
+            parents = parents,
+            values = values
+        ))
+        fig.update_layout(margin = dict(t=0, l=0, r=0, b=0))
+
+        fig.show()
+
+    def draw_scattermatrix(self, data, exp_names, parameters):
+        """
+        Use data to draw scatter matrix plot
+        """
+
+        # sns.set(style="ticks", color_codes=True)
+
+        if self.num_repetitions == 1:
+            parameters['config_id'] = {}
+            parameters['config_id']['type'] = 'i'
+            parameters['config_id']['domain'] = [int(data['config_id'].min()), int(data['config_id'].max())]
+            keyParam = 'config_id'
+        else:
+            parameters['exp_name'] = {}
+            parameters['exp_name']['type'] = 'c'
+            parameters['exp_name']['domain'] = exp_names
+            keyParam = 'exp_name'
+
+        if self.key_param not in ('null', None):
+            keyParam = self.key_param
+        else:
+            keyParam = keyParam 
+
+        dimensions = []
+        if self.matrix_param not in (None, 'null'):
+            for x in self.matrix_param.split(','):
+                dimensions.append(x)
+        else:
+            dimensions = list(parameters.keys())
+
+        fig = px.scatter_matrix(data,
+            dimensions = dimensions,
+            color = keyParam,
+            title = self.title,
+            labels={col:col.replace('_', ' ') for col in data.columns})
+        fig.update_traces(diagonal_visible=False)
+        fig.show()
+
+    def count_values(self, column):
+        data = list(column)
+        count = 0
+        for x in data:
+            if x not in ('null', None):
+                count += 1
+        return count
+

@@ -1,4 +1,3 @@
-import os
 import sys
 import traceback
 
@@ -19,12 +18,13 @@ class DrawPlot:
         try:
             if self.drawMethod in ('boxplot', 'violinplot'):
                 load = Performance(reader)
-            elif self.drawMethod in ('lineplot', 'parallelplot'):
+            elif self.drawMethod in ('parallelcoord', 'parallelcat', 'piechart', 'scattermatrix'):
                 load = Parameters(reader)
             getattr(load, self.drawMethod)()
 
             print('#\n# Succeeded! ')
-            print('# Now you can check the plot file in', self.out_dir)
+            if self.drawMethod not in ('parallelcoord', 'parallelcat', 'piechart', 'scattermatrix'):
+                print('# Now you can check the plot file in', self.out_dir)
             print('#------------------------------------------------------------------------------')
         except:
             print("#\n! There was an error: ")

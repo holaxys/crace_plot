@@ -76,10 +76,30 @@
         "short": "-d",
         "long": "--draw-method",
         "default": "",
-        "domain": "(boxplot, violinplot, lineplot, parallelplot)",
+        "domain": "(boxplot, violinplot, parallelcoord, parallelcat, piechart, scattermatrix)",
         "section": "Draw plot",
         "description": "The method chose to draw a plot for the Crace results.",
         "vignettes": "The funtion chose to analyse the \\Crace results. If this option is not null, \\execDir must to be provided.\n When one method is chosen, the correspoding option must be True.\n "
+    },
+    {
+        "name": "catx",
+        "type": "s",
+        "short": "-cx",
+        "long": "--cat-x",
+        "default": "",
+        "section": "Draw plot",
+        "description": "The parameter used as x axis for parallel categorical plot.",
+        "vignettes": "The parameter used as x axis for the parallel categorical plot."
+    },
+    {
+        "name": "caty",
+        "type": "s",
+        "short": "-cy",
+        "long": "--cat-y",
+        "default": "",
+        "section": "Draw plot",
+        "description":"The parameter used as y axis for parallel categorical plot.",
+        "vignettes": "The parameter used as y axis for the parallel categorical plot."
     },
     {
         "name": "numConfigurations",
@@ -97,7 +117,7 @@
         "type": "i",
         "short": "-ne",
         "long": "--else-num-configurations",
-        "default": 7,
+        "default": 30,
         "domain": "(5,999999999)",
         "section": "Draw plot",
         "description": "Additional parameter for the number of configurations when 'else' is chosed for numConfigurations.",
@@ -124,6 +144,16 @@
         "section": "Draw plot",
         "description": "The parameter chosed to be the key in the plot.",
         "vignettes": "The parameter chosed to be the key one shown in the plot. For example: if one parameter is provided as the key for the parallelplot, the plot will be grouped by this parameter."
+    },
+    {
+        "name": "matrixParameters",
+        "type": "s",
+        "short": "-m",
+        "long": "--matrix-parameters",
+        "default": null,
+        "section": "Draw plot",
+        "description": "Parameters provided to draw plot like scatter matrix.",
+        "vignettes": "Parameters provided to draw plot like scatter matrix on the provided Crace results."
     }
 
 ]

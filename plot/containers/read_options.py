@@ -62,11 +62,11 @@ def print_help():
     options = []
     for o in all_options:
         options.append(o.name)
-        if o.short is not None and o.short is not "":
+        if o.short is not None and o.short != "":
             print("#\n# {:<2}, {:<22}{}".format(o.short, o.long, o.description))
         else:
             print("#\n# {:<4}{:<22}{}".format(o.short,o.long, o.description))
-        if o.default is not None or o.default is not "":
+        if o.default is not None or o.default != "":
             print("# {:<26}Default: {}".format('', o.default))
         if o.type in ['i', 's']:
             print("# {:<26}Domain: {}".format('', o.domain))
@@ -167,23 +167,40 @@ class ReadOptions:
         #     print_version()
         #     sys.exit()
         
+        index = {}
         for o in self.options:
             if self.get_option(o).short in arguments:
-                index = arguments.index(self.get_option(o).short)
+                index[o] = arguments.index(self.get_option(o).short)
             elif self.get_option(o).long in arguments:
-                index = arguments.index(self.get_option(o).long)
+                index[o] = arguments.index(self.get_option(o).long)
             else:
                 continue
         
+        for o in index.keys():
             if isinstance(self.get_option(o), EnablerOption): 
                 self.set_option(o, True)
-                del arguments[index]
-            else: 
-                self.set_option(o, arguments[index + 1])
-                del arguments[index:(index + 2)]
+                arguments[index[o]] = None
+            elif self.get_option(o).short != '-m': 
+                self.set_option(o, arguments[index[o]+1])
+                arguments[index[o]] = arguments[index[o]+1] = None
+            else:
+                i = 1
+                l = []
+                for x in arguments[index[o]+1:]:
+                    if (index[o]+i) not in index.values():
+                        l.append(x)
+                        arguments[index[o] + i] = None
+                    else:
+                        break
+                    i += 1
+                self.set_option(o, ','.join(l))
+                arguments[index[o]] = None
+        print(arguments)
+        print(x for x in arguments if x == None)
 
-        if len(arguments) > 0:
-            raise OptionError("!   Argument not recognized: " + arguments[0])
+        for x in arguments:
+            if x is not None:
+                raise OptionError("!   Argument not recognized: " + x)
 
     def check_options(self):
         """
@@ -193,6 +210,11 @@ class ReadOptions:
         """
         # FIXME: check drawMethod options
         # FIXME: check execDir is avaliable or not
+
+        exp_folders = sorted([subdir for subdir, dirs, files in os.walk(self.execDir.value) \
+                      for dir in dirs if dir == 'irace_log' ])
+        if len(exp_folders) != self.numRepetitions.value:
+            self.numRepetitions.value = len(exp_folders)
 
         if self.drawMethod.value is not None and self.execDir.value is None:
             raise ParameterValueError("!   The 'execDir' must be provided when 'drawMethod' is not None!")
@@ -205,15 +227,27 @@ class ReadOptions:
             path_name2 = os.path.basename(os.path.dirname(self.execDir.value))
             self.title.value = self.drawMethod.value+': '+path_name2+'/'+path_name1
 
+        if self.drawMethod.value == 'parallelcat':
+            if self.catx.value in ('null', None) or self.caty.value in ('null', None):
+                raise ParameterValueError("!   When method 'parallelcat' is chosed, 'catx'(-cx) and 'caty'(-cy) must be provided!")
+            
+        if 'matrix' not in self.drawMethod.value and self.matrixParameters.value not in (None, 'null'):
+            raise ParameterValueError("!   Parameter 'matrixParameters'(-m) should not be provided here!")
+        # if 'matrix' in self.drawMethod.value:
+        #     # if self.matrixParameters.value in (None, 'null'):
+        #     #     raise ParameterValueError("!   Parameter 'matrixParameters'(-m) must be provided!")
+        #     if self.numRepetitions.value == 1 and self.keyParameter.value in (None, 'null'):
+        #         raise ParameterValueError("!   Parameter 'keyParameter'(-k) must be provided!")
+
         self.fileName.value = os.path.join(self.outDir.value, self.fileName.value)
 
         if self.configType.value == 'test' and self.numConfigurations.value == 'all':
             raise ParameterValueError("!   There is no 'allConfigurations' in test part!")
 
-        exp_folders = sorted([subdir for subdir, dirs, files in os.walk(self.execDir.value) \
-                      for dir in dirs if dir == 'irace_log' ])
-        if len(exp_folders) != self.numRepetitions.value:
-            self.numRepetitions.value = len(exp_folders)
+        if self.numConfigurations.value != 'else':
+            self.elseNumConfigs.value = 'null'
+
+
 
     def get_option(self, option_name):
         """
@@ -249,7 +283,7 @@ class ReadOptions:
         print('# Crace plot options: ')
         for o in self.options:
             v = self.get_option(o).value
-            if self.get_option(o).type is not 'e':
+            if self.get_option(o).type != 'e':
                 print("#   {}: {}".format(o, v))
         print('#------------------------------------------------------------------------------')
 
