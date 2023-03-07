@@ -3,10 +3,14 @@
 import os
 import re
 import copy
+import math
+import sys
 import numpy as np
 import pandas as pd
 import seaborn as sns
 sns.set(rc={'figure.figsize':(11.7,8.27)})
+sns.set_style('white')
+
 
 # import plotly as py
 import plotly.graph_objects as go
@@ -36,9 +40,12 @@ class Parameters:
         self.title = options.title.value
         self.file_name = options.fileName.value
         self.key_param = options.keyParameter.value
-        self.matrix_param = options.matrixParameters.value
-        self.catx = options.catx.value
-        self.caty = options.caty.value
+        self.multi_params = options.multiParameters.value
+        if self.multi_params is not None and options.drawMethod.value == 'parallelcat':
+            self.catx = options.multiParameters.value.split(',')[0]
+            self.caty = options.multiParameters.value.split(',')[1]
+
+        self.dpi = options.dpi.value
 
         if options.numConfigurations.value == "elites":
             self.num_config = 5
@@ -82,13 +89,25 @@ class Parameters:
         """
         call the function to draw pie chart
         """
-        self.draw_piechart(self.all_results, self.exp_names, self.parameters)
+        self.draw_piechart(self.all_results, self.parameters)
 
     def scattermatrix(self):
         """
         call the function to draw scatter matrix plot
         """
         self.draw_scattermatrix(self.all_results, self.exp_names, self.parameters)
+
+    def histplot(self):
+        """
+        call the function to draw distplot
+        """
+        self.draw_histplot(self.all_results, self.parameters)
+    
+    def jointplot(self):
+        """
+        call the function to draw jointplot
+        """
+        self.draw_jointplot(self.all_results, self.exp_names, self.parameters)
 
     def draw_parallelcoord(self, data, exp_names, elite_ids, parameters):
         """
@@ -302,7 +321,7 @@ class Parameters:
 
         fig.show()
 
-    def draw_piechart(self, pie_data, exp_names, parameters):
+    def draw_piechart(self, pie_data, parameters):
         """
         Use pie_data to draw a pie plot for the provided Crace results
         """
@@ -420,8 +439,8 @@ class Parameters:
             keyParam = keyParam 
 
         dimensions = []
-        if self.matrix_param not in (None, 'null'):
-            for x in self.matrix_param.split(','):
+        if self.multi_params is not None:
+            for x in self.multi_params.split(','):
                 dimensions.append(x)
         else:
             dimensions = list(parameters.keys())
@@ -429,10 +448,140 @@ class Parameters:
         fig = px.scatter_matrix(data,
             dimensions = dimensions,
             color = keyParam,
+            symbol= keyParam,
             title = self.title,
             labels={col:col.replace('_', ' ') for col in data.columns})
         fig.update_traces(diagonal_visible=False)
         fig.show()
+
+    def draw_histplot(self, data, parameters):
+        """
+        Use provided data to draw distplot
+        """
+
+        sns.set_style('whitegrid')
+        sns.set(font_scale=0.7)
+
+        param_names = []
+        if self.multi_params is not None:
+            for x in self.multi_params.split(','):
+                param_names.append(x)
+        else:
+            param_names = list(parameters.keys())
+
+        data_new = data.copy()
+
+        for name in parameters.keys():
+            per = list(data[name]).count('null')/len(data)
+            if per == float(1):
+                print("! WARNING: all values in {} are 'null', it will be deleted for the plot!".format(name))
+                param_names.pop(param_names.index(name))
+            elif per > 0:
+                # print("! WARNING: 'null' values in {} will be replaced by NaN.".format(name))
+                data_new[name].replace('null', np.nan, inplace=True)
+
+        col = data_new.count() == 0
+        for i in range(len(col)):
+            if col[i] and col.index[i] in param_names:
+                print("! WARNING: all values in {} are NaN, it will be deleted for the plot!".format(col.index[i]) )
+                param_names.pop(param_names.index((col.index[i])))
+
+        print("#")
+
+        num = 8
+        page_num = math.ceil(len(param_names)/8)
+        params = locals()
+        file_names = locals()
+        start = 0
+        for i in range(0, page_num):
+            fig, axis = plt.subplots(2, 4, sharey=True, sharex=False)
+            plt.subplots_adjust(hspace=0.5, wspace=0.3, bottom=0.2)
+            
+            if start+7 <= len(param_names):
+                params['params%s' % i] = param_names[start:start+8]               
+            else:
+                num = len(param_names) - start
+                params['params%s' % i] = param_names[start:]              
+            start = start+8
+            file_names['plot%s' % i] = self.file_name.split('.')[0]+str(i)   
+
+            row = column = 0
+            for name in params['params%s' % i]:
+                fig = sns.histplot(data=data_new.sort_values(by=name, na_position='last', ascending=True),
+                                   x=name, stat='density', 
+                                   ax=axis[row, column])
+                if parameters[name]['type'] != 'c':
+                    fig = sns.rugplot(data=data_new.sort_values(by=name, na_position='last', ascending=True),
+                                    x=name, ax=axis[row, column])
+                if len(name) > 25:
+                    name = re.sub(r"(.{25})", "\\1\n", name)
+                if column != 0:
+                    fig.set_ylabel('')
+                fig.set_xlabel('\n'+name, rotation=0, size=8)
+
+                if column < 3:
+                    column += 1
+                else:
+                    column = 0
+                    row += 1 
+
+            plot = fig.get_figure()
+            file_name = file_names['plot%s' % i]
+                        
+            if num < 8:
+                del_r = math.floor(num/4)
+                del_c = num%4
+                for i in range(del_r, 2):
+                    while del_c < 4:
+                        plt.delaxes(axis[i, del_c])
+                        del_c += 1
+                    del_c = 0        
+                    
+            plot.savefig(file_name, dpi=self.dpi)
+            print("# {} has been saved.".format(file_name))
+
+    def draw_jointplot(self, data, exp_names, parameters):
+        """
+        Use provided data to draw jointplot
+        """
+
+        if self.num_repetitions == 1:
+            parameters['config_id'] = {}
+            parameters['config_id']['type'] = 'i'
+            parameters['config_id']['domain'] = [int(data['config_id'].min()), int(data['config_id'].max())]
+            keyParam = 'config_id'
+        else:
+            parameters['exp_name'] = {}
+            parameters['exp_name']['type'] = 'c'
+            parameters['exp_name']['domain'] = exp_names
+            keyParam = 'exp_name'
+
+        if self.key_param not in ('null', None):
+            keyParam = self.key_param
+        else:
+            keyParam = keyParam 
+
+        dimensions = []
+        if self.multi_params not in (None, 'null'):
+            for x in self.multi_params.split(','):
+                dimensions.append(x)
+
+        data = pd.DataFrame(data=data, columns=dimensions)
+        # x=list(map(float, data[dimensions[0]]))
+        # y=list(map(float, data[dimensions[1]]))
+        x=dimensions[0]
+        y=dimensions[1]
+
+        fig = sns.jointplot(
+            x=x, 
+            y=y,
+            data=data,
+            kind='reg',
+            space=0.1,
+            ratio=3)
+        
+        fig.savefig(self.file_name, dpi=self.dpi)
+        print("# {} has been saved.".format(self.file_name))
 
     def count_values(self, column):
         data = list(column)

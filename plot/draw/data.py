@@ -56,7 +56,7 @@ class ReadResults:
         self.config_log = "irace_log/config.log"
         self.params = "irace_log/parameters.log"
 
-        parameters = self.parse_parameters()
+        self.parameters = self.parse_parameters()
 
         if self.num_config == 1:
             all_configs, config_ids, elite_ids = self.elitist_config() 
@@ -67,7 +67,7 @@ class ReadResults:
         else:
             all_configs, config_ids, elite_ids = self.else_configs()
         
-        return all_configs, config_ids, elite_ids, parameters
+        return all_configs, config_ids, elite_ids, self.parameters
 
     def elites_quality(self):
         """
@@ -95,7 +95,7 @@ class ReadResults:
                 for line in f2:
                     line_results = json.loads(line)
                     current_id = int(line_results["configuration_id"])
-                    current_quality = line_results["quality"]
+                    current_quality = float(line_results["quality"])
                     if current_id in elite_ids[name]:
                         tmp = pd.DataFrame([[name, current_id, current_quality]], columns=['exp_name', 'config_id', 'quality'])
                         all_data = pd.concat([all_data, tmp], ignore_index=True)
@@ -131,7 +131,7 @@ class ReadResults:
                 for line in f2:
                     line_results = json.loads(line)
                     current_id = int(line_results["configuration_id"])
-                    current_quality = line_results["quality"]
+                    current_quality = float(line_results["quality"])
                     if current_id in elite_ids[name]:
                         tmp = pd.DataFrame([[name, current_id, current_quality]], columns=['exp_name', 'config_id', 'quality'])
                         all_data = pd.concat([all_data, tmp], ignore_index=True)
@@ -175,7 +175,13 @@ class ReadResults:
                         t1 = pd.DataFrame([config_id], columns=['config_id'])
                         t2 = pd.DataFrame([name], columns=['exp_name'])
                         for pa in params.split(', '):
-                            tmp = pd.DataFrame([pa.split(': ')[1]], columns=[pa.split(': ')[0]])
+                            param_name = pa.split(': ')[0]
+                            param_value = pa.split(': ')[1]
+                            if 'i' in self.parameters[param_name]['type'] and param_value not in (None, 'null'):
+                                param_value = int(pa.split(': ')[1])
+                            elif 'r' in self.parameters[param_name]['type'] and param_value not in (None, 'null'):
+                                param_value = float(pa.split(': ')[1])
+                            tmp = pd.DataFrame([param_value], columns=[param_name])
                             t1 = pd.concat([t1, tmp], axis=1)
                         t2 = pd.concat([t2, t1], axis=1)
                         all_configs = pd.concat([all_configs, t2], ignore_index=True)
@@ -222,7 +228,13 @@ class ReadResults:
                         t1 = pd.DataFrame([config_id], columns=['config_id'])
                         t2 = pd.DataFrame([name], columns=['exp_name'])
                         for pa in params.split(', '):
-                            tmp = pd.DataFrame([pa.split(': ')[1]], columns=[pa.split(': ')[0]])
+                            param_name = pa.split(': ')[0]
+                            param_value = pa.split(': ')[1]
+                            if 'i' in self.parameters[param_name]['type'] and param_value not in (None, 'null'):
+                                param_value = int(pa.split(': ')[1])
+                            elif 'r' in self.parameters[param_name]['type'] and param_value not in (None, 'null'):
+                                param_value = float(pa.split(': ')[1])
+                            tmp = pd.DataFrame([param_value], columns=[param_name])
                             t1 = pd.concat([t1, tmp], axis=1)
                         t2 = pd.concat([t2, t1], axis=1)
                         all_configs = pd.concat([all_configs, t2], ignore_index=True)
@@ -266,7 +278,13 @@ class ReadResults:
                         t1 = pd.DataFrame([config_id], columns=['config_id'])
                         t2 = pd.DataFrame([name], columns=['exp_name'])
                         for pa in params.split(', '):
-                            tmp = pd.DataFrame([pa.split(': ')[1]], columns=[pa.split(': ')[0]])
+                            param_name = pa.split(': ')[0]
+                            param_value = pa.split(': ')[1]
+                            if 'i' in self.parameters[param_name]['type'] and param_value not in (None, 'null'):
+                                param_value = int(pa.split(': ')[1])
+                            elif 'r' in self.parameters[param_name]['type'] and param_value not in (None, 'null'):
+                                param_value = float(pa.split(': ')[1])
+                            tmp = pd.DataFrame([param_value], columns=[param_name])
                             t1 = pd.concat([t1, tmp], axis=1)
                         t2 = pd.concat([t2, t1], axis=1)
                         all_configs = pd.concat([all_configs, t2], ignore_index=True)
@@ -313,7 +331,13 @@ class ReadResults:
                         t1 = pd.DataFrame([config_id], columns=['config_id'])
                         t2 = pd.DataFrame([name], columns=['exp_name'])
                         for pa in params.split(', '):
-                            tmp = pd.DataFrame([pa.split(': ')[1]], columns=[pa.split(': ')[0]])
+                            param_name = pa.split(': ')[0]
+                            param_value = pa.split(': ')[1]
+                            if 'i' in self.parameters[param_name]['type'] and param_value not in (None, 'null'):
+                                param_value = int(pa.split(': ')[1])
+                            elif 'r' in self.parameters[param_name]['type'] and param_value not in (None, 'null'):
+                                param_value = float(pa.split(': ')[1])
+                            tmp = pd.DataFrame([param_value], columns=[param_name])
                             t1 = pd.concat([t1, tmp], axis=1)
                         t2 = pd.concat([t2, t1], axis=1)
                         all_configs = pd.concat([all_configs, t2], ignore_index=True)
@@ -322,7 +346,6 @@ class ReadResults:
             # secondly read the other configurations not in the elites list
             with open(os.path.join(folder, self.config_log), 'r') as f3:
                 lines = f3.readlines()
-                print(len(lines))
                 n = -1
                 while i < self.num_config:
                     line = lines[n]
@@ -334,7 +357,13 @@ class ReadResults:
                         t1 = pd.DataFrame([config_id], columns=['config_id'])
                         t2 = pd.DataFrame([name], columns=['exp_name'])
                         for pa in params.split(', '):
-                            tmp = pd.DataFrame([pa.split(': ')[1]], columns=[pa.split(': ')[0]])
+                            param_name = pa.split(': ')[0]
+                            param_value = pa.split(': ')[1]
+                            if 'i' in self.parameters[param_name]['type'] and param_value not in (None, 'null'):
+                                param_value = int(pa.split(': ')[1])
+                            elif 'r' in self.parameters[param_name]['type'] and param_value not in (None, 'null'):
+                                param_value = float(pa.split(': ')[1])
+                            tmp = pd.DataFrame([param_value], columns=[param_name])
                             t1 = pd.concat([t1, tmp], axis=1)
                         t2 = pd.concat([t2, t1], axis=1)
                         all_configs = pd.concat([all_configs, t2], ignore_index=True)

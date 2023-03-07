@@ -14,18 +14,20 @@ class DrawPlot:
 
         self.out_dir = reader.outDir.value
         self.drawMethod = reader.drawMethod.value
+        methods = ('parallelcoord', 'parallelcat', 'piechart', 'scattermatrix', 'histplot', 'jointplot')
 
         try:
             if self.drawMethod in ('boxplot', 'violinplot'):
                 load = Performance(reader)
-            elif self.drawMethod in ('parallelcoord', 'parallelcat', 'piechart', 'scattermatrix'):
+            elif self.drawMethod in methods:
                 load = Parameters(reader)
             getattr(load, self.drawMethod)()
 
             print('#\n# Succeeded! ')
-            if self.drawMethod not in ('parallelcoord', 'parallelcat', 'piechart', 'scattermatrix'):
+            if self.drawMethod not in methods:
                 print('# Now you can check the plot file in', self.out_dir)
             print('#------------------------------------------------------------------------------')
+
         except:
             print("#\n! There was an error: ")
             err = traceback.format_exc()

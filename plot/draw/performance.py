@@ -81,24 +81,22 @@ class Performance:
             while i < num:
                 i += 1
                 if num%i == 0 and num/i >= column:
-                    column = int(num/i)
-                    row = i
+                    row = int(num/i)
+                    column = i
             
             fig, axis = plt.subplots(row, column, sharey=True)
             plt.subplots_adjust(hspace=0.3)
 
-            n=0
+            n = 0
             if row > 1:
                 for i in range(0, row):
                     for j in range(0, column):
                         data_exp = data.loc[data['exp_name']==exp_names[n]]
                         fig = sns.boxplot(
                             x='config_id', y='quality', data=data_exp, width=0.5, fliersize=1, linewidth=0.5, palette="Purples", ax=axis[i,j])
-                        # fig = sns.swarmplot(
-                        #     x='config_id', y='quality', data=data_exp, linewidth=0.5, color=".25", size=1, ax=axis[i,j])
                         fig.set_xticklabels(elite_ids[exp_names[n]], rotation=0, fontsize=10)
                         fig.set_xlabel(exp_names[n])
-                        if n != i*column:
+                        if j != 0:
                             fig.set_ylabel('')
                         n += 1  
             elif num > 1:
@@ -108,7 +106,9 @@ class Performance:
                         x='config_id', y='quality', data=data_exp, width=0.5, fliersize=1, linewidth=0.5, palette="Purples", ax=axis[i])
                     fig.set_xticklabels(elite_ids[exp_names[n]], rotation=0)
                     fig.set_xlabel(exp_names[n])
-                    n += 1
+                    if i != 0:
+                            fig.set_ylabel('')
+                    n += 1 
             else:
                 fig = sns.boxplot(x='config_id', y='quality', data=data, width=0.5, fliersize=2, linewidth=0.5, palette="Purples") 
                 fig.set_xticklabels(elite_ids[exp_names[0]], rotation=0)
@@ -124,7 +124,7 @@ class Performance:
             fig.set_xlabel('\n{}'.format(ids))
         
         plot = fig.get_figure()
-        plot.savefig(self.file_name)
+        plot.savefig(self.file_name, dpi=self.dpi)
 
     def draw_violinplot(self, data, exp_names, elite_ids):
         """
@@ -150,8 +150,8 @@ class Performance:
             while i < num:
                 i += 1
                 if num%i == 0 and num/i >= column:
-                    column = int(num/i)
-                    row = i
+                    row = int(num/i)
+                    column = i
             
             fig, axis = plt.subplots(row, column, sharey=True)
             plt.subplots_adjust(hspace=0.3)
@@ -165,7 +165,7 @@ class Performance:
                             x='config_id', y='quality', data=data_exp, inner="point", width=0.5, linewidth=0.5, palette="Purples", ax=axis[i,j])
                         fig.set_xticklabels(elite_ids[exp_names[n]], rotation=0, fontsize=10)
                         fig.set_xlabel(exp_names[n])
-                        if n != i*column:
+                        if j != 0:
                             fig.set_ylabel('')
                         n += 1  
             elif num > 1:
@@ -175,6 +175,8 @@ class Performance:
                         x='config_id', y='quality', data=data_exp, inner="point", width=0.5, linewidth=0.5, palette="Purples", ax=axis[i])
                     fig.set_xticklabels(elite_ids[exp_names[n]], rotation=0)
                     fig.set_xlabel(exp_names[n])
+                    if i != 0:
+                        fig.set_ylabel('')
                     n += 1
             else:
                 fig = sns.violinplot(x='config_id', y='quality', data=data, inner="point", width=0.5, linewidth=0.5, palette="Purples")
@@ -192,4 +194,4 @@ class Performance:
             fig.set_xlabel('\n{}'.format(ids))
         
         plot = fig.get_figure()
-        plot.savefig(self.file_name)
+        plot.savefig(self.file_name, dpi=self.dpi)

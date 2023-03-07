@@ -55,7 +55,7 @@
         "type": "s",
         "short": "-t",
         "long": "--title",
-        "default": null,
+        "default": "",
         "section":"Plot file",
         "description": "The title of the output plot.",
         "vignettes": "The title of the output plot. The default value of this option depends on the \\parameter{execDir} and the \\parameter{drawMethod}. This option is only avaliable when \\parameter{execDir} and \\parameter{drawMethod} are not None."
@@ -76,30 +76,10 @@
         "short": "-d",
         "long": "--draw-method",
         "default": "",
-        "domain": "(boxplot, violinplot, parallelcoord, parallelcat, piechart, scattermatrix)",
+        "domain": "(boxplot, violinplot, parallelcoord, parallelcat, piechart, scattermatrix, histplot, jointplot)",
         "section": "Draw plot",
         "description": "The method chose to draw a plot for the Crace results.",
         "vignettes": "The funtion chose to analyse the \\Crace results. If this option is not null, \\execDir must to be provided.\n When one method is chosen, the correspoding option must be True.\n "
-    },
-    {
-        "name": "catx",
-        "type": "s",
-        "short": "-cx",
-        "long": "--cat-x",
-        "default": "",
-        "section": "Draw plot",
-        "description": "The parameter used as x axis for parallel categorical plot.",
-        "vignettes": "The parameter used as x axis for the parallel categorical plot."
-    },
-    {
-        "name": "caty",
-        "type": "s",
-        "short": "-cy",
-        "long": "--cat-y",
-        "default": "",
-        "section": "Draw plot",
-        "description":"The parameter used as y axis for parallel categorical plot.",
-        "vignettes": "The parameter used as y axis for the parallel categorical plot."
     },
     {
         "name": "numConfigurations",
@@ -140,20 +120,30 @@
         "type": "s",
         "short": "-k",
         "long": "--key-parameter",
-        "default": null,
+        "default": "",
         "section": "Draw plot",
         "description": "The parameter chosed to be the key in the plot.",
         "vignettes": "The parameter chosed to be the key one shown in the plot. For example: if one parameter is provided as the key for the parallelplot, the plot will be grouped by this parameter."
     },
     {
-        "name": "matrixParameters",
+        "name": "multiParameters",
         "type": "s",
         "short": "-m",
-        "long": "--matrix-parameters",
-        "default": null,
+        "long": "--multi-parameters",
+        "default": "",
         "section": "Draw plot",
-        "description": "Parameters provided to draw plot like scatter matrix.",
-        "vignettes": "Parameters provided to draw plot like scatter matrix on the provided Crace results."
+        "description": "Multiple parameters provided to draw plot like scatter matrix.",
+        "vignettes": "Multiple parameters provided to draw plot like scatter matrix on the provided Crace results."
+    },
+    {
+        "name": "dpi",
+        "type": "i",
+        "short": "-dpi",
+        "long": "--dpi",
+        "default": 300,
+        "domain": "(50,1000)",
+        "section": "Draw plot",
+        "description": "The parameter dpi used for saving plot.",
+        "vignettes": "When method used to draw a plot will export a plot file, this parameter will be added to control the quality of the exported plot."
     }
-
 ]

@@ -195,8 +195,6 @@ class ReadOptions:
                     i += 1
                 self.set_option(o, ','.join(l))
                 arguments[index[o]] = None
-        print(arguments)
-        print(x for x in arguments if x == None)
 
         for x in arguments:
             if x is not None:
@@ -226,18 +224,14 @@ class ReadOptions:
             path_name1 = os.path.basename(self.execDir.value)
             path_name2 = os.path.basename(os.path.dirname(self.execDir.value))
             self.title.value = self.drawMethod.value+': '+path_name2+'/'+path_name1
-
-        if self.drawMethod.value == 'parallelcat':
-            if self.catx.value in ('null', None) or self.caty.value in ('null', None):
-                raise ParameterValueError("!   When method 'parallelcat' is chosed, 'catx'(-cx) and 'caty'(-cy) must be provided!")
             
-        if 'matrix' not in self.drawMethod.value and self.matrixParameters.value not in (None, 'null'):
-            raise ParameterValueError("!   Parameter 'matrixParameters'(-m) should not be provided here!")
-        # if 'matrix' in self.drawMethod.value:
-        #     # if self.matrixParameters.value in (None, 'null'):
-        #     #     raise ParameterValueError("!   Parameter 'matrixParameters'(-m) must be provided!")
-        #     if self.numRepetitions.value == 1 and self.keyParameter.value in (None, 'null'):
-        #         raise ParameterValueError("!   Parameter 'keyParameter'(-k) must be provided!")
+        if self.drawMethod.value not in "(parallelcoord, parallelcat, piechart, \
+            scattermatrix, histplot, jointplot)" and self.multiParameters.value is not None:
+            raise ParameterValueError("!   Parameter 'multiParameters'(-m) should not be provided here!")
+      
+        if self.drawMethod.value in "(jointplot, parallelcat)":
+            if self.multiParameters.value is None or len(self.multiParameters.value.split(',')) != 2:
+                raise ParameterValueError("!   When '{}' is called, two parameter names must be provided!".format(self.drawMethod.value))
 
         self.fileName.value = os.path.join(self.outDir.value, self.fileName.value)
 
@@ -246,8 +240,6 @@ class ReadOptions:
 
         if self.numConfigurations.value != 'else':
             self.elseNumConfigs.value = 'null'
-
-
 
     def get_option(self, option_name):
         """
