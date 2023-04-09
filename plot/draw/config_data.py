@@ -477,7 +477,6 @@ class Parameters:
                 print("! WARNING: all values in {} are 'null', it will be deleted for the plot!".format(name))
                 param_names.pop(param_names.index(name))
             elif per > 0:
-                # print("! WARNING: 'null' values in {} will be replaced by NaN.".format(name))
                 data_new[name].replace('null', np.nan, inplace=True)
 
         col = data_new.count() == 0
@@ -495,7 +494,8 @@ class Parameters:
         start = 0
         for i in range(0, page_num):
             fig, axis = plt.subplots(2, 4, sharey=True, sharex=False)
-            plt.subplots_adjust(hspace=0.5, wspace=0.3, bottom=0.2)
+            plt.subplots_adjust(hspace=0.5, wspace=0.2, bottom=0.2)
+            title = '\nPage ' + str(i+1) + ' of ' + str(page_num)
             
             if start+7 <= len(param_names):
                 params['params%s' % i] = param_names[start:start+8]               
@@ -536,7 +536,8 @@ class Parameters:
                         plt.delaxes(axis[i, del_c])
                         del_c += 1
                     del_c = 0        
-                    
+
+            plt.suptitle(title, size=15)
             plot.savefig(file_name, dpi=self.dpi)
             print("# {} has been saved.".format(file_name))
 

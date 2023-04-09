@@ -23,6 +23,8 @@ class ReadResults:
         elif options.numConfigurations.value == "elitist":
             self.num_config = 1
         elif options.numConfigurations.value == "all":
+            self.num_config = -5
+        elif options.numConfigurations.value == 'allelites':
             self.num_config = -1
         elif options.numConfigurations.value == "else":
             self.num_config = options.elseNumConfigs.value
@@ -63,6 +65,8 @@ class ReadResults:
         elif self.num_config == 5:
             all_configs, config_ids, elite_ids = self.elite_configs()
         elif self.num_config == -1:
+            all_configs, config_ids, elite_ids = self.all_elite_configs()
+        elif self.num_config == -5:
             all_configs, config_ids, elite_ids = self.all_configs()
         else:
             all_configs, config_ids, elite_ids = self.else_configs()
@@ -163,6 +167,54 @@ class ReadResults:
                         elite_ids[name].append(elite_id)
                     i += 1
             f1.close()
+
+            tmp = t1 = t2 = pd.DataFrame()
+            # read config_log file to get the details of each elitist configuration 
+            with open(os.path.join(folder, self.config_log), 'r') as f2:
+                for line in f2:
+                    config_id = int(line.split(',')[0])
+                    if config_id not in config_ids and config_id in elite_ids[name]:
+                        config_ids.append(config_id)
+                        params = re.sub('"','',line.split('{')[1].split('}')[0])
+                        t1 = pd.DataFrame([config_id], columns=['config_id'])
+                        t2 = pd.DataFrame([name], columns=['exp_name'])
+                        for pa in params.split(', '):
+                            param_name = pa.split(': ')[0]
+                            param_value = pa.split(': ')[1]
+                            if 'i' in self.parameters[param_name]['type'] and param_value not in (None, 'null'):
+                                param_value = int(pa.split(': ')[1])
+                            elif 'r' in self.parameters[param_name]['type'] and param_value not in (None, 'null'):
+                                param_value = float(pa.split(': ')[1])
+                            tmp = pd.DataFrame([param_value], columns=[param_name])
+                            t1 = pd.concat([t1, tmp], axis=1)
+                        t2 = pd.concat([t2, t1], axis=1)
+                        all_configs = pd.concat([all_configs, t2], ignore_index=True)
+            f2.close()    
+
+        return all_configs, exp_names, elite_ids
+
+    def all_elite_configs(self):
+        """
+        Read the at least top 5 configurations from the provided Crace results
+        """
+
+        # parameters need to be returned
+        all_configs = pd.DataFrame()
+        exp_names = []
+        elite_ids = {}
+
+        for folder in self.folders:
+            name = os.path.basename(folder)
+            exp_names.append(name)
+            elite_ids[name] = []
+            config_ids = []
+            i = 0
+            # read elites.log file to get the elitist configuration id
+            with open(os.path.join(folder, "elites.log"), "r") as f1:
+                for line in f1:
+                    elite_ids[name].append(int(re.sub("\D", "", line)))
+            f1.close()
+            elite_ids[name].pop()
 
             tmp = t1 = t2 = pd.DataFrame()
             # read config_log file to get the details of each elitist configuration 

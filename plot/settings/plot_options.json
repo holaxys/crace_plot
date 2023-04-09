@@ -87,10 +87,10 @@
         "short": "-n",
         "long": "--num-configurations",
         "default": "elites",
-        "domain": "(elites, elitist, all, else)",
+        "domain": "(elites, elitist, allelites, all, else)",
         "section": "Draw plot",
         "description": "The number of configurations used to draw plot.",
-        "vignettes": "The number of configurations used to draw plot.\n\\begin{itemize}\n\\item[] \\code{elites} the top 5 (or less) elite configurations in Crace training part.\n\\item[] \\code{elitist} the elitist configuration in Crace training part. \n\\item[] \\code{all} all configurations having quality in Crace training part.\n\\end{itemize}\\begin{xwarningbox}\n The configurations from test part can not be \\code{all}.\n\\end{xwarningbox}"
+        "vignettes": "The number of configurations used to draw plot.\n\\begin{itemize}\n\\item[] \\code{elites} the top 5 (or less) elite configurations in Crace training part.\n\\item[] \\code{elitist} the elitist configuration in Crace training part. \n\\item[] \\code{all} all configurations having quality in Crace training part. \n\\item[] \\code{allelites} all elitist configurations appeared in the whole Crace process. \n\\end{itemize}\\begin{xwarningbox}\n The configurations from test part can not be \\code{all}.\n\\end{xwarningbox}"
     },
     {
         "name": "elseNumConfigs",

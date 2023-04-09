@@ -237,6 +237,11 @@ class ReadOptions:
 
         if self.configType.value == 'test' and self.numConfigurations.value == 'all':
             raise ParameterValueError("!   There is no 'allConfigurations' in test part!")
+        
+        if self.numConfigurations.value == 'allelites':
+            print(self.execDir.value)
+            if not os.path.exists(os.path.join(self.execDir.value, "elites.log")):
+                raise ParameterValueError("!   There is no 'elites.log' in exeDir.")
 
         if self.numConfigurations.value != 'else':
             self.elseNumConfigs.value = 'null'
