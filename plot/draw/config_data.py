@@ -61,7 +61,7 @@ class Parameters:
         self.draw_method = options.drawMethod.value
 
         exp_folders = sorted([subdir for subdir, dirs, files in os.walk(self.exec_dir) \
-                      for dir in dirs if dir == 'irace_log' ])
+                      for dir in dirs if dir == 'race_log' ])
         print("# Loading Crace results..")
         self.load = ReadResults(exp_folders, options)
 

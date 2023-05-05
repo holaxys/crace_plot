@@ -41,8 +41,8 @@ class ReadResults:
         Tips: the quality of each experiments on different configurations
         """
 
-        self.elite_log = "irace_log/elite.log"
-        self.exps_fin = "irace_log/exps_fin.log" if self.config_type == "training" else "irace_log/test/exps_fin.log"
+        self.elite_log = "race_log/elite.log"
+        self.exps_fin = "race_log/exps_fin.log" if self.config_type == "training" else "race_log/test/exps_fin.log"
 
         all_data, exp_names, elite_ids = self.elites_quality() if self.num_config == 5 else self.elitist_quality()
 
@@ -54,9 +54,9 @@ class ReadResults:
         Tips: the value of parameters for each configuration
         """
         
-        self.elite_log = "irace_log/elite.log"
-        self.config_log = "irace_log/config.log"
-        self.params = "irace_log/parameters.log"
+        self.elite_log = "race_log/elite.log"
+        self.config_log = "race_log/config.log"
+        self.params = "race_log/parameters.log"
 
         self.parameters = self.parse_parameters()
 

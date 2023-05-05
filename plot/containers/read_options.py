@@ -131,12 +131,12 @@ class ReadOptions:
             self._load_options(arguments)
             self.check_options()
         except OptionError as err:
-            print("#\n! There was an error while reading irace options :")
+            print("#\n! There was an error while reading crace options :")
             print(err)
             print_info()
             sys.exit()
         except FileError as err:
-            print("#\n! There was an error while reading irace options file :")
+            print("#\n! There was an error while reading crace options file :")
             print(err)
             sys.exit()
         except Exception as err:
@@ -210,7 +210,7 @@ class ReadOptions:
         # FIXME: check execDir is avaliable or not
 
         exp_folders = sorted([subdir for subdir, dirs, files in os.walk(self.execDir.value) \
-                      for dir in dirs if dir == 'irace_log' ])
+                      for dir in dirs if dir == 'race_log' ])
         if len(exp_folders) != self.numRepetitions.value:
             self.numRepetitions.value = len(exp_folders)
 
