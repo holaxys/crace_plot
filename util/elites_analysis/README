@@ -1,0 +1,20 @@
+# ================================================================================================
+
+# 	Version:	1.0
+# 	File:		README
+# 	Author:		Yunshuang XIAO
+
+# ------------------------------------------------------------------------------------------------
+
+#   1. use "find_elite_configs" to find out each elite configuration from the standard output file
+# of each target experiment. Get the index of elites and search for the correspoding configuration
+# based on the "config.log" of the target experiment.
+#   To run this file, the address of the target experiment should be provided.
+#   eg: ./find_elite_configs /path/to/crace-2.11/acotsp
+
+#   2. use "elites_on_instances" to test each elite configuration on each instance.
+#   To run this file, the address of the target experiment and the instances should be provided.
+#   eg: ./elites_on_instances /path/to/crace-2.11/acotsp /path/to/instances/file
+
+# ================================================================================================
+

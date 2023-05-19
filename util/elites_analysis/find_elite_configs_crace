@@ -1,0 +1,122 @@
+#!/bin/bash
+
+# =============================================================================================
+
+# 	Version:	1.0
+# 	File:		find_elite_configs_crace
+# 	Author:		Yunshuang XIAO
+# 	Purpose:	Obtain elite configurations from exsisting crace experiments for elites analysis
+	
+# 	INPUT:		DIR_EXP:	the folder of experiment you want to analysis
+# 	OUTPUT:		No direct optput on the screen, but
+# 				1st file "elites.log" of elites index for correspoding experiment
+# 				2nd file "elites_config.log" of correspoding elite configurations
+
+# =============================================================================================
+
+error() {
+    echo "`TZ=UTC date`: $0: error: $@" >&2
+    exit 1
+}
+
+# usage
+if [ $# == 0 ]; then
+    echo " Usage: ./find_elite_configs_crace <DIR_OF_EXP> \n eg: ./find_elite_configs_crace .../crace-2.11/acotsp "
+    exit 1
+fi
+
+DIR_EXP=$*
+
+# exsiting file
+CONFIG_FILE="race_log/config.log"
+# file will be created
+ELITES_FILE="elites.log"
+ELITES_CONFIG="race_log/elites_config.log"
+
+function search_elite_configs(){
+
+	# ----------------------------------------------------------------------------------------
+	#   FUNCTION:	search_elite_configs
+    #   INPUT:	    SEED_OLD:	the seed in the correspoding instance file
+	#   OUTPUT:	    none
+	#   EFFECTS:	this function will modify the global parameter $GSEED
+	#   COMMENTS:	$GSEED comes from the upper shell
+	# ----------------------------------------------------------------------------------------
+
+    elite_num=$1
+    dir=$2
+    cd $dir
+
+    # read the index of configurations
+    cat $CONFIG_FILE | while read line
+    do
+        INDEX=$( echo $line | cut -d '{' -f1 | cut -d ',' -f1 )
+        if [ $elite_num == $INDEX ]; then
+           echo "$line" >> $ELITES_CONFIG 
+        fi
+    done
+}
+
+function main(){
+
+	# ----------------------------------------------------------------------------------------
+	#   FUNCTION:	main function of find_elite_configs, call function search_elite_configs 
+	# 				to find out the correspoding configuration for elite index
+	#   INPUT: 		none
+	#   OUTPUT:		none
+	# ----------------------------------------------------------------------------------------
+
+    find $DIR_EXP -type f | grep "crace.train" | while read file_line
+    do
+        # get the dir of each crace.train file
+        DIR_FILE=${file_line%/*}
+        # echo $DIR_FILE
+        cd $DIR_FILE
+        # echo `pwd`
+        # delete and create new elites.log file
+        # this file is to save the information of elite configurations in crace (from crace.train file)
+        # rm -rf $DIR_FILE/$ELITES_FILE
+        # touch $DIR_FILE/$ELITES_FILE
+        rm -rf $ELITES_FILE $ELITES_CONFIG
+        touch $ELITES_FILE $ELITES_CONFIG
+
+        # get and save the index of elite configurations
+        grep "|" crace.train | grep "," | cut -d "|" -f10 | cut -d "," -f1 | sort -n | uniq > $DIR_FILE/$ELITES_FILE
+        FINAL_BEST=$(grep "Final best configuration" crace.train | tr -d " " | cut -d ":" -f2 | tr -cd "[0-9]")
+        echo "Final best configuration: $FINAL_BEST" >> $ELITES_FILE
+
+        printf "#   $DIR_FILE: $ELITES_FILE\n"        
+
+        # check config.log in folder race_log
+        cat $ELITES_FILE | while read line
+        do  
+            elite=$( echo $line | grep -E '^[0-9][0-9]*$' )
+            if [[ "$elite" =~ ^[0-9][0-9]*$ ]]; then	
+                search_elite_configs $elite $DIR_FILE
+            fi
+        done
+        len=`expr length "$DIR_FILE"`
+        printf "#   %${len}s  $ELITES_CONFIG\n" 
+
+    done     
+}
+
+# call the main function
+echo "---------------------------------------------------------------------------------------------------------"
+echo "# parameters: $#"
+para_i=1
+for para in $*
+do
+    echo "#   $para_i: $para"
+    let para_i=$para_i+1
+done
+echo "# find_elite_configs is running..."
+echo "# files are saved:"
+main
+status=$?
+if [ $status == 0 ] ; then
+	echo "# find_elite_configs is succeed "
+else
+	echo "# failed"
+fi
+echo "---------------------------------------------------------------------------------------------------------"

@@ -8,7 +8,7 @@ import sys
 import numpy as np
 import pandas as pd
 import seaborn as sns
-sns.set(rc={'figure.figsize':(11.7,8.27)})
+sns.set(rc={'figure.figsize':(11.7,3)})
 sns.set_style('white')
 
 
@@ -460,7 +460,7 @@ class Parameters:
         """
 
         sns.set_style('whitegrid')
-        sns.set(font_scale=0.7)
+        sns.set(font_scale=0.9)
 
         param_names = []
         if self.multi_params is not None:
@@ -493,8 +493,9 @@ class Parameters:
         file_names = locals()
         start = 0
         for i in range(0, page_num):
-            fig, axis = plt.subplots(2, 4, sharey=True, sharex=False)
-            plt.subplots_adjust(hspace=0.5, wspace=0.2, bottom=0.2)
+            fig, axis = plt.subplots(1, 3, sharey=False, sharex=False)
+            # fig, axis = plt.subplots(2, 4, sharey=False, sharex=False)
+            plt.subplots_adjust(hspace=0.5, wspace=0.4, bottom=0.2)
             title = '\nPage ' + str(i+1) + ' of ' + str(page_num)
             
             if start+7 <= len(param_names):
@@ -508,16 +509,16 @@ class Parameters:
             row = column = 0
             for name in params['params%s' % i]:
                 fig = sns.histplot(data=data_new.sort_values(by=name, na_position='last', ascending=True),
-                                   x=name, stat='density', 
-                                   ax=axis[row, column])
+                                   x=name, stat='frequency', kde=True, 
+                                   ax=axis[column])
                 if parameters[name]['type'] != 'c':
                     fig = sns.rugplot(data=data_new.sort_values(by=name, na_position='last', ascending=True),
-                                    x=name, ax=axis[row, column])
+                                    x=name, ax=axis[column])
                 if len(name) > 25:
                     name = re.sub(r"(.{25})", "\\1\n", name)
                 if column != 0:
                     fig.set_ylabel('')
-                fig.set_xlabel('\n'+name, rotation=0, size=8)
+                fig.set_xlabel('\n'+name, rotation=0)
 
                 if column < 3:
                     column += 1
@@ -528,16 +529,16 @@ class Parameters:
             plot = fig.get_figure()
             file_name = file_names['plot%s' % i]
                         
-            if num < 8:
-                del_r = math.floor(num/4)
-                del_c = num%4
-                for i in range(del_r, 2):
-                    while del_c < 4:
-                        plt.delaxes(axis[i, del_c])
-                        del_c += 1
-                    del_c = 0        
-
-            plt.suptitle(title, size=15)
+            # if num < 8:
+            #     del_r = math.floor(num/4)
+            #     del_c = num%4
+            #     for i in range(del_r, 2):
+            #         while del_c < 4:
+            #             plt.delaxes(axis[i, del_c])
+            #             del_c += 1
+            #         del_c = 0        
+            
+            plt.suptitle(self.title, size=15)
             plot.savefig(file_name, dpi=self.dpi)
             print("# {} has been saved.".format(file_name))
 

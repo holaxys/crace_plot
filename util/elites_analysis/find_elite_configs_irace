@@ -1,0 +1,137 @@
+#!/bin/bash
+
+# =============================================================================================
+
+# 	Version:	1.0
+# 	File:		find_elite_configs
+# 	Author:		Yunshuang XIAO
+# 	Purpose:	Obtain elite configurations from exsisting irace experiments for elites analysis
+	
+# 	INPUT:		DIR_EXP:	the folder of experiment you want to analysis
+# 	OUTPUT:		No direct optput on the screen, but
+# 				1st file "elites.log" of elites index for correspoding experiment
+# 				2nd file "elites_config.log" of correspoding elite configurations
+
+# =============================================================================================
+
+error() {
+    echo "`TZ=UTC date`: $0: error: $@" >&2
+    exit 1
+}
+
+# usage
+if [ $# == 0 ]; then
+    echo " Usage: ./find_elite_configs_irace <DIR_OF_EXP> \n eg: ./find_elite_configs_irace .../crace-2.11/acotsp/numC/irace "
+    exit 1
+fi
+
+DIR_EXP=$1
+
+# exsiting file
+
+# file will be created
+ELITES_FILE="elites.log"
+ELITES_CONFIG="race_log/elites_config.log"
+
+function search_elite_configs(){
+
+	# ----------------------------------------------------------------------------------------
+	#   FUNCTION:	search_elite_configs
+    #   INPUT:	    SEED_OLD:	the seed in the correspoding instance file
+	#   OUTPUT:	    none
+	#   EFFECTS:	this function will modify the global parameter $GSEED
+	#   COMMENTS:	$GSEED comes from the upper shell
+	# ----------------------------------------------------------------------------------------
+
+    config_id=$1
+    dir=$2
+    cd $dir
+
+    # read the index of configurations
+    line=$(cat irace.train | grep -A 2 "Description of the best-so-far configuration:" | grep $config_id | uniq | sed "s/[ ][ ]*/,/g")
+    algorithm=$(echo $line | cut -d "," -f3)
+    localsearch=$(echo $line | cut -d "," -f4)
+    alpha=$(echo $line | cut -d "," -f5)
+    beta=$(echo $line | cut -d "," -f6)
+    rho=$(echo $line | cut -d "," -f7)
+    ants=$(echo $line | cut -d "," -f8)
+    q0=$(echo $line | cut -d "," -f9)
+    rasrank=$(echo $line | cut -d "," -f10)
+    elitistants=$(echo $line | cut -d "," -f11)
+    nnls=$(echo $line | cut -d "," -f12)
+    dlb=$(echo $line | cut -d "," -f13)
+
+    outline="$config_id,"
+    if [[ $algorithm != "NA" ]] ; then outline=$outline" --$algorithm"; fi
+    if [[ $localsearch != "NA" ]] ; then outline=$outline" --localsearch $localsearch"; fi
+    if [[ $alpha != "NA" ]] ; then outline=$outline" --alpha $alpha"; fi
+    if [[ $beta != "NA" ]] ; then outline=$outline" --beta $beta"; fi
+    if [[ $rho != "NA" ]] ; then outline=$outline" --rho $rho"; fi
+    if [[ $ants != "NA" ]] ; then outline=$outline" --ants $ants"; fi
+    if [[ $q0 != "NA" ]] ; then outline=$outline" --q0 $q0"; fi
+    if [[ $rasrank != "NA" ]] ; then outline=$outline" --rasrank $rasrank"; fi
+    if [[ $elitistants != "NA" ]] ; then outline=$outline" --elitistants $elitistants"; fi
+    if [[ $nnls != "NA" ]] ; then outline=$outline" --nnls $nnls"; fi
+    if [[ $dlb != "NA" ]] ; then outline=$outline" --dlb $dlb"; fi
+
+    echo "$outline" >> $ELITES_CONFIG
+}
+
+function main(){
+
+	# ----------------------------------------------------------------------------------------
+	#   FUNCTION:	main function of find_elite_configs, call function search_elite_configs 
+	# 				to find out the correspoding configuration for elite index
+	#   INPUT: 		none
+	#   OUTPUT:		none
+	# ----------------------------------------------------------------------------------------
+
+    find $DIR_EXP -type f | grep "irace" | grep "irace.train" | while read file_line
+    do
+        # get the dir of each irace.train file
+        DIR_FILE=${file_line%/*}
+        # echo $DIR_FILE
+        cd $DIR_FILE
+        # echo `pwd`
+        # delete and create new elites.log file
+        # this file is to save the information of elite configurations in crace (from irace.train file)
+        # rm -rf $DIR_FILE/$ELITES_FILE
+        # touch $DIR_FILE/$ELITES_FILE
+        rm -rf $ELITES_FILE $ELITES_CONFIG
+        touch $ELITES_FILE $ELITES_CONFIG
+        
+        # get and save the index of elite configurations
+        grep "Best-so-far configuration:" irace.train | tr -d " " | cut -d ":" -f2 | cut -d "m" -f1 | uniq > $DIR_FILE/$ELITES_FILE
+
+        FINAL_BEST=$(tail -n 1 "race_irace.log")
+        echo "Final best configuration: $FINAL_BEST" >> $ELITES_FILE
+
+        # check config.log in folder race_log
+        cat $ELITES_FILE | while read line
+        do  
+            elite=$( echo $line | grep -E '^[0-9][0-9]*$' )
+            if [[ "$elite" =~ ^[0-9][0-9]*$ ]]; then	
+                search_elite_configs $elite $DIR_FILE
+            fi
+        done
+
+    done     
+}
+
+# call the main function
+echo "---------------------------------------------------------------------------------------------------------"
+echo "# parameters: $#"
+para_i=1
+for para in $*
+do
+    echo "#   $para_i: $para"
+done
+echo "# find_elite_configs is running..."
+main
+status=$?
+if [ $status == 0 ] ; then
+	echo "# find_elite_configs is succeed "
+else
+	echo "# failed"
+fi
+echo "---------------------------------------------------------------------------------------------------------"

@@ -1,0 +1,259 @@
+#! /bin/bash
+
+# ==============================================================================================
+
+# 	Version:	1.0
+# 	File:		elites_on_instances
+# 	Author:		Yunshuang XIAO
+# 	Purpose:	Run elite configurations on correspoding instances for elites analysis
+# 	Check:		README
+	
+# 	INPUT:		DIR_EXP:	the folder of experiment you want to analysis
+# 				INS_LIST:	the file of instances information (should include the complete 
+# 							address of each instance)
+# 	OUTPUT:		No direct optput on the screen, but
+# 				1 file called "exps_elite.log" about all the information of cmd line and result  
+# 				of each experiment in the folder of correspoding	original crace experiment
+
+# ==============================================================================================
+
+error() {
+    echo "`TZ=UTC date`: $0: error: $@" >&2
+    exit 1
+}
+
+# usage
+if [ $# -lt 2 ]; then
+    echo -e " Usage: ./elites_on_instances <DIR_OF_EXP> <INSTANCES_DIR> \n eg: ./find_elites_configs .../crace-2.11/acotsp .../instances/tsp"
+    exit 1
+fi
+
+DIR_EXP=$1
+INS_LIST=$2
+
+# exp_logs needs to be create
+if [[ $INS_LIST == "instances.log" ]] ; then
+    EXP_LOGS=race_log/test/exps_elites_train.log
+elif [[ $INS_LIST == "tinstances.log" ]] ; then
+	EXP_LOGS=race_log/test/exps_elites_test.log
+fi
+
+# EXP_LOGS=race_log/test/exps_elite_train.log
+
+# existing file about: elite configurations
+ELITES_CONFIG=race_log/elites_config.log
+
+# path to the executable software
+EXE=/home/ysxiao/bin/exe/acotspqap/acotsp
+# FIXED_PARAMS is the fixed setting for EXE 
+FIXED_PARAMS=" --tries 1 --time 20 --quiet "
+
+
+
+function set_seed(){
+
+	# ----------------------------------------------------------------------------------------
+	# 	FUNCTION:	calculate a seed
+	# 	INPUT: 		SEED_OLD:		the seed in the correspoding instance file
+	# 	OUTPUT:		none
+	# 	EFFECTS:	this function will modify the global parameter $GSEED
+	# 	COMMENTS:	$GSEED comes from the upper shell
+	# ----------------------------------------------------------------------------------------
+
+	SO=$1
+	IA=16807
+	IQ=127775
+	IR=2576
+	IS=56789
+	RA=$RANDOM
+	k=`expr $IQ / $IA`
+	s=`expr $IS / $SO`
+	k1=`expr $k \* $IQ`
+	k2=`expr $IR \* $k`
+	s1=`expr $RA + $s`
+	t1=`expr $k1 - $s1`
+	t2=`expr $IA \* $t1`
+	RA=`expr $t2 - $k2`
+	# RA=$(expr $[$[$IA*$[$[$k*$IQ]-$[$RA+$s]]]-$[$IR*$k]])
+	# echo $RA
+	# exit 1
+	GSEED=$RA
+}
+
+function target_runner(){
+
+	# ----------------------------------------------------------------------------------------
+	# 	FUNCTION:	call the executable $EXE to run experiment separately
+	# 	INPUT: 		$elite_num $INSTANCE_ID $EXPERIMENT_ID "$ins_file" $SEED "$config"
+	# 				elite_num: 		the index of elite configuration
+	# 				INSTANCE_ID: 	the index of instance
+	# 				EXPERIMENT_ID: 	the index of current run
+	# 				ins_file:		the correspoding instance to the $INSTANCE_ID
+	# 				SEED:			calculated seed on the basis on seed in instance file
+	# 				config:			the correspoding configuration to the $elite_num
+	# 	OUTPUT:		none
+	# 	EFFECTS:	each elite configuration on one instance and save its cmd line and result
+	# 	COMMENTS:	this function is about one elite configuration on one instance, the user
+	# 				should provide the elite configuration and the instance 
+	# ----------------------------------------------------------------------------------------
+
+	# target_runner $config_id $INSTANCE_ID $EXPERIMENT_ID "$ins_file" $GSEED "$config"
+	
+	CONFIG_ID=$1
+	INS_ID=$2
+	EXP_ID=$3
+	INSTANCE=$4
+	SEED=$5
+	shift 5 || error "Not enough parameters"
+	CONFIG_PARAMS=$*
+	
+	STDOUT=ct${CONFIG_ID}-${INSTANCE_ID}-${SEED}.stdout
+	STDERR=ct${CONFIG_ID}-${INSTANCE_ID}-${SEED}.stderr
+	
+	# check if there is error
+	if [ ! -x "${EXE}" ]; then
+    	error "${EXE}: not found or not executable (pwd: $(pwd))"
+	fi
+
+	# echo "elite_config: $CONFIG_ID $CONFIG_PARAMS"
+
+	# run ACOTSP, modify the index of experiment
+	cmd_line="$EXE ${FIXED_PARAMS} -i $INSTANCE --seed $SEED ${CONFIG_PARAMS}"
+	$EXE ${FIXED_PARAMS} -i $INSTANCE --seed $SEED ${CONFIG_PARAMS} 1> $STDOUT 2> $STDERR
+
+	# read COST from the standard output file
+	# Does this file exist?
+	if [ ! -s "${STDOUT}" ] ; then
+    	# In this case, the file does not exist. Let's exit with a value 
+    	# different from 0. In this case irace will stop with an error.
+    	error "${STDOUT}: No such file or directory (${CONFIG_ID}, ${INSTANCE_ID})"
+	fi
+	# Ok, the file exist. It contains the whole output written by ILSQAP.
+	# This script should return a single numerical value, the best objective 
+	# value found by this run of ILSQAP. The following line is to extract
+	# this value from the file containing ILSQAP output.
+	# when the last line is a number and the best objective value
+	COST=$(cat ${STDOUT} | grep -o -E 'Best [-+0-9.e]+' | cut -d ' ' -f2)
+
+	if ! [[ "$COST" =~ ^[-+0-9.e]+$ ]] ; then
+    	error "${STDOUT}: Output is not a number (${CONFIG_ID}, ${INSTANCE_ID})"
+	fi
+	
+	# write result to file exp_logs
+	# the format should be:
+	# {"experiment_id": x, "configuration_id": x, "instance_id": x, "cmd_line": "xxx", "quality": x}
+	# echo "{\"experiment_id\": $EXP_ID, \"configuration_id\": $CONFIG_ID, \"instance_id\": $INS_ID, \"cmd_line\": \"$cmd_line\", \"quality\": $COST}" 
+	echo "{\"experiment_id\": $EXP_ID, \"configuration_id\": $CONFIG_ID, \"instance_id\": $INS_ID, \"cmd_line\": \"$cmd_line\", \"quality\": $COST}"  >> $EXP_LOGS
+
+	# delete standard output files and error files
+	rm -f "${STDOUT}" "${STDERR}"
+	rm -f best.* stat.* cmp.*
+}
+
+function main(){
+	# ----------------------------------------------------------------------------------------
+	#   FUNCTION:	main function of elites_on_instances, call function target_runner to run 
+	# 				each elite on each instance
+	#   INPUT: 		none
+	#   OUTPUT:		none
+	# ----------------------------------------------------------------------------------------
+
+	find $DIR_EXP -type f | grep "elites.log" | sort -n | while read file_line
+	do
+		# get the dir of each irace.train file
+		DIR_FILE=${file_line%/*}
+
+		flag_crace=$( echo $DIR_FILE | grep "para" )
+		flag_irace=$( echo $DIR_FILE | grep "irace/exp-")
+
+		# echo $DIR_FILE
+		cd $DIR_FILE
+		echo "|-- |-- Current dir: $DIR_FILE"
+
+		# create log file for the experiment
+		# the correspoding file should be saved in the folder exp-x/race_log/test/
+		rm -rf $EXP_LOGS
+		touch $EXP_LOGS
+
+		# GSEED is a parameter for seed, used to calculate the seed for experiments
+		GSEED=1234567
+
+		# experiment_id is the index of experiment for elites on instances
+		# it should be a global parameter
+		EXPERIMENT_ID=1
+		# read elite from file ELITES_CONFIG
+		# each elite should run on each instance
+		num_i=$( awk 'END{print NR}' $ELITES_CONFIG )
+		if [[ $INS_LIST =~ "instances.log" ]] ; then
+			num_j=`expr $( awk 'END{print NR}' race_log/$INS_LIST ) - 1`
+		else
+			num_j=$( awk 'END{print NR}' $INS_LIST )
+		fi
+		i=0
+		while [ $i -lt $num_i ]
+		do
+			((i++))
+			elite_line=$( cat $ELITES_CONFIG | head -n $i | tail -n 1 )
+			config_id=$( echo $elite_line | cut -d "," -f1 )
+			if [[ $flag_crace ]] ; then
+				config=$( echo $elite_line | cut -d "}" -f2 | cut -d "," -f2 )
+			elif [[ $flag_irace ]] ; then
+				config=$( echo $elite_line | cut -d "," -f2 )
+			fi
+
+			if [[ $i == $num_i ]] ; then
+                echo "|-- |-- \`-- Config $config_id is running..."
+            else
+                echo "|-- |-- |-- Config $config_id is running..."
+            fi
+
+			# read instance
+			INSTANCE_ID=1
+			j=0
+			while [ $j -lt $num_j ]
+			do
+				((j++))
+				if [[ $INS_LIST =~ "instances.log" ]] ; then
+					ins_line=$( cat race_log/$INS_LIST | head -n `expr $j + 1` | tail -n 1 )
+					INSTANCE_ID=$( echo $ins_line | cut -d ',' -f1 )
+					ins_file=$( echo $ins_line | cut -d ',' -f2 )
+					# ins_file=/home/ysxiao/irace/instances/tsp/RUE.Instances.2000/$ins_file
+					GSEED=$( echo $ins_line | cut -d ',' -f3 )
+				else
+					ins_file=$( cat $INS_LIST | head -n $j | tail -n 1 )
+					SEED_OLD=$( cat $ins_file | grep "seed" | cut -d "," -f2 | cut -d "=" -f2 )
+					set_seed $SEED_OLD
+				fi
+
+				target_runner $config_id $INSTANCE_ID $EXPERIMENT_ID "$ins_file" $GSEED "$config"
+
+				((EXPERIMENT_ID++))
+				((INSTANCE_ID++))
+			done
+		done
+	done 
+	echo "\`-- \`-- \`-- $EXPERIMENT_ID experiments finished running..."
+}
+
+# call the main function
+echo "---------------------------------------------------------------------------------------------------------"
+echo "|-- input parameters: $#"
+para_i=1
+for para in $*
+do
+	if [ $para_i == $# ]; then
+		echo "|-- \`-- $para_i: $para"
+	else
+    	echo "|-- |-- $para_i: $para"
+	fi
+	((para_i++))
+done
+echo "|-- elites_on_instances is running..."
+main
+status=$?
+if [ $status == 0 ] ; then
+	echo "|- elites_on_instances is succeed "
+else
+	echo "\`- elites_on_instances is failed"
+fi
+echo "---------------------------------------------------------------------------------------------------------"
