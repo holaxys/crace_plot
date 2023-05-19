@@ -19,11 +19,11 @@ class ReadResults:
         self.exps_fin = ""
 
         if options.numConfigurations.value == "elites":
-            self.num_config = 5
+            self.num_config = 
         elif options.numConfigurations.value == "elitist":
             self.num_config = 1
         elif options.numConfigurations.value == "all":
-            self.num_config = -5
+            self.num_config = -2
         elif options.numConfigurations.value == 'allelites':
             self.num_config = -1
         elif options.numConfigurations.value == "else":

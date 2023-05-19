@@ -31,8 +31,12 @@ class Performance:
             self.num_config = 5
         elif options.numConfigurations.value == "elitist":
             self.num_config = 1
-        else:
+        elif options.numConfigurations.value == "all":
+            self.num_config = -5
+        elif options.numConfigurations.value == 'allelites':
             self.num_config = -1
+        elif options.numConfigurations.value == "else":
+            self.num_config = options.elseNumConfigs.value
 
         # select exact method to draw plot via :param{drawMethod}
         # e.g.: boxplot, violinplot
@@ -70,7 +74,7 @@ class Performance:
         print("# ", re.sub('\'','',str(exp_names)))
         print("#\n# Elite configurations from the Crace results you provided that will be analysed here :")
 
-        if self.num_config != 1:
+        if self.num_config != 1 and self.num_config != -5:
 
             for i in range(0, num):
                 print("#   {}: {}".format(exp_names[i], elite_ids[exp_names[i]]))
