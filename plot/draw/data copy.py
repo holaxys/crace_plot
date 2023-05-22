@@ -91,11 +91,11 @@ class ReadResults:
             self.exps_fin = "race_log/exps_fin.log"
 
         if self.num_config == 5:
-            all_data, config_ids, elite_ids = self.elites_process()
+            all_data = self.elites_process()
         elif self.num_config == -1:
-            all_data, config_ids, elite_ids = self.all_elite_process()
+            all_data = self.all_elite_process()
 
-        return all_data, config_ids, elite_ids
+        return all_data
 
     def elites_quality(self):
         """
@@ -452,14 +452,9 @@ class ReadResults:
         Read the quality of the final elite configurations sampled at the the process
         """
 
-        all_configs = pd.DataFrame()
-        exp_names = None
+        elite_ids = []
 
         folder = self.folders[0]
-        name = os.path.basename(folder)
-        dirname = os.path.basename(os.path.dirname(folder))
-        exp_names = dirname + '/' + name
-        elite_ids = []
         i = 0
         with open(os.path.join(folder, self.elite_log), "r") as f1:
             for line in f1:
@@ -469,21 +464,21 @@ class ReadResults:
                 i += 1
         f1.close()
         
-        tmp = pd.DataFrame()
+        all_configs = {}
         print("#   exps file:", os.path.join(folder, self.exps_fin))
         # read config_log file to get the details of each elitist configuration 
         with open(os.path.join(folder, self.exps_fin), 'r') as f2:
             for line in f2:
                 line_result = json.loads(line)
                 current_id = str(line_result["configuration_id"])
+                current_quality = line_result["quality"]
                 if int(current_id) in elite_ids:
+                    if current_id not in all_configs.keys():
+                        all_configs[current_id] = []
+                    all_configs[current_id].append(current_quality)
                     current_ins = str(line_result["instance_id"])
-                    current_quality = line_result["quality"]
-                    tmp = pd.DataFrame([[name, current_id, current_ins, current_quality]], \
-                                        columns=['exp_name', 'config_id', 'instance_id', 'quality'])
-                    all_configs = pd.concat([all_configs, tmp], ignore_index=True)
         f2.close()    
-        return all_configs, exp_names, elite_ids
+        return all_configs
 
     def all_elite_process(self):
         """
@@ -491,14 +486,11 @@ class ReadResults:
         """
 
         # parameters need to be returned
-        all_configs = pd.DataFrame()
-        exp_names = None
         elite_ids = []
 
         folder = self.folders[0]
-        name = os.path.basename(folder)
-        dirname = os.path.basename(os.path.dirname(folder))
-        exp_names = dirname + '/' + name
+        elite_ids = []
+        i = 0
         # read elites.log file to get the elitist configuration id
         with open(os.path.join(folder, self.all_elites), "r") as f1:
             for line in f1:
@@ -506,26 +498,22 @@ class ReadResults:
         f1.close()
         elitist_id = elite_ids.pop()
 
-        tmp = pd.DataFrame()
+        all_configs = {}
         print("#   exps file:", os.path.join(folder, self.exps_fin))
         # read config_log file to get the details of each elitist configuration 
         with open(os.path.join(folder, self.exps_fin), 'r') as f2:
             for line in f2:
                 line_result = json.loads(line)
                 current_id = str(line_result["configuration_id"])
+                current_quality = line_result["quality"]
                 if int(current_id) in elite_ids:
-                    current_ins = str(line_result["instance_id"])
-                    current_quality = line_result["quality"]
-                    # if int(current_id) == elitist_id:
-                    #     current_id = "*%(num)s*" % {"num": elitist_id}
-                    tmp = pd.DataFrame([[name, current_id, current_ins, current_quality]], \
-                                        columns=['exp_name', 'config_id', 'instance_id', 'quality'])
-                    all_configs = pd.concat([all_configs, tmp], ignore_index=True)
+                    if int(current_id) == elitist_id:
+                        current_id = "-%(num)s-" % {"num": elitist_id}
+                    if current_id not in all_configs.keys():
+                        all_configs[current_id] = []
+                    all_configs[current_id].append(current_quality)
         f2.close() 
-
-        elite_ids[elite_ids.index(elitist_id)] = "*%(num)s*" % {"num": elitist_id}
-
-        return all_configs, exp_names, elite_ids
+        return all_configs
 
     def parse_parameters(self):
         """

@@ -21,7 +21,7 @@ from plot.containers.read_options import ReadOptions
 from plot.draw.data import ReadResults
 
 
-class Parameters:
+class Configurations:
     """
     Class defines a list of methods used to compare configurations from Crace
     :ivar exec_dir: the directory of Crace results
@@ -53,6 +53,8 @@ class Parameters:
             self.num_config = 1
         elif options.numConfigurations.value == "all":
             self.num_config = -5
+        elif options.numConfigurations.value == 'allelites':
+            self.num_config = -1
         elif options.numConfigurations.value == "else":
             self.num_config = options.elseNumConfigs.value
 

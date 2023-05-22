@@ -63,13 +63,13 @@ def print_help():
     for o in all_options:
         options.append(o.name)
         if o.short is not None and o.short != "":
-            print("#\n# {:<2}, {:<22}{}".format(o.short, o.long, o.description))
+            print("#\n# {:<4}, {:<29}{}".format(o.short, o.long, o.description))
         else:
-            print("#\n# {:<4}{:<22}{}".format(o.short,o.long, o.description))
+            print("#\n# {:<4}{:<31}{}".format(o.short,o.long, o.description))
         if o.default is not None or o.default != "":
-            print("# {:<26}Default: {}".format('', o.default))
+            print("# {:<35}Default: {}".format('', o.default))
         if o.type in ['i', 's']:
-            print("# {:<26}Domain: {}".format('', o.domain))
+            print("# {:<35}Domain: {}".format('', o.domain))
     print('#\n#------------------------------------------------------------------------------')
 
 def print_info():
@@ -214,6 +214,21 @@ class ReadOptions:
         if len(exp_folders) != self.numRepetitions.value:
             self.numRepetitions.value = len(exp_folders)
 
+        if self.dataFrom.value is None:
+            if self.drawMethod.value in "(parallelcoord, parallelcat, piechart, \
+            scattermatrix, histplot, jointplot)":
+                self.dataFrom.value = "configuration"
+            if self.drawMethod.value == "boxplot" and "elites" in self.numConfigurations.value:
+                self.dataFrom.value = "process"
+            if self.drawMethod.value in "(boxplot, violinplot)":
+                self.dataFrom.value = "quality"
+        elif self.dataFrom.value == "process":
+            self.drawMethod.value = "boxplot"
+            print("!   When analysing the process, only 'boxplot' can be chosen.")
+
+        if self.dataFrom.value != "process" and self.configType.value is None:
+            self.configType.value = "training"
+
         if self.drawMethod.value is not None and self.execDir.value is None:
             raise ParameterValueError("!   The 'execDir' must be provided when 'drawMethod' is not None!")
         elif self.drawMethod.value is None:
@@ -239,7 +254,6 @@ class ReadOptions:
             raise ParameterValueError("!   There is no 'allConfigurations' in test part!")
         
         if self.numConfigurations.value == 'allelites':
-            print(self.execDir.value)
             if not os.path.exists(os.path.join(self.execDir.value, "elites.log")):
                 raise ParameterValueError("!   There is no 'elites.log' in exeDir.")
 

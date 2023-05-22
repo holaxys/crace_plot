@@ -82,6 +82,17 @@
         "vignettes": "The funtion chose to analyse the \\Crace results. If this option is not null, \\execDir must to be provided.\n When one method is chosen, the correspoding option must be True.\n "
     },
     {
+        "name": "dataFrom",
+        "type": "s",
+        "short": "-df",
+        "long": "--data-from",
+        "default": "",
+        "domain": "(quality, configuration, process)",
+        "section": "Draw plot",
+        "description": "The origin of data used for drawing plot(s).",
+        "vignettes": "What type of the data used for drawing plot(s), which includes the quality of configurations from experiment(s), \nthe parameters of configuration(s) from one experiment and the quality of configurations from one experiment.\n"
+    },
+    {
         "name": "numConfigurations",
         "type": "s",
         "short": "-n",
@@ -108,7 +119,7 @@
         "type": "s",
         "short": "-c",
         "long": "--config-type",
-        "default": "training",
+        "default": "",
         "domain": "(test, training)",
         "section": "Draw plot",
         "description": "The type of configurations from provided Crace results.",

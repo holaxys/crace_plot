@@ -27,6 +27,8 @@ class Performance:
         self.title = options.title.value
         self.file_name = options.fileName.value
 
+        self.dpi = options.dpi.value
+
         if options.numConfigurations.value == "elites":
             self.num_config = 5
         elif options.numConfigurations.value == "elitist":
@@ -74,7 +76,7 @@ class Performance:
         print("# ", re.sub('\'','',str(exp_names)))
         print("#\n# Elite configurations from the Crace results you provided that will be analysed here :")
 
-        if self.num_config != 1 and self.num_config != -5:
+        if self.num_config != 1:
 
             for i in range(0, num):
                 print("#   {}: {}".format(exp_names[i], elite_ids[exp_names[i]]))
@@ -98,6 +100,7 @@ class Performance:
                         data_exp = data.loc[data['exp_name']==exp_names[n]]
                         fig = sns.boxplot(
                             x='config_id', y='quality', data=data_exp, width=0.5, fliersize=1, linewidth=0.5, palette="Purples", ax=axis[i,j])
+                        print(elite_ids[exp_names[n]])
                         fig.set_xticklabels(elite_ids[exp_names[n]], rotation=0, fontsize=10)
                         fig.set_xlabel(exp_names[n])
                         if j != 0:

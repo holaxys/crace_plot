@@ -3,7 +3,8 @@ import traceback
 
 from plot.containers.read_options import ReadOptions
 from plot.draw.performance import Performance
-from plot.draw.config_data import Parameters
+from plot.draw.configuration import Configurations
+from plot.draw.process import Process
 
 class DrawPlot:
     """
@@ -14,13 +15,16 @@ class DrawPlot:
 
         self.out_dir = reader.outDir.value
         self.drawMethod = reader.drawMethod.value
+        self.dataFrom = reader.dataFrom.value
         methods = ('parallelcoord', 'parallelcat', 'piechart', 'scattermatrix', 'histplot', 'jointplot')
 
         try:
-            if self.drawMethod in ('boxplot', 'violinplot'):
+            if self.dataFrom == "quality":
                 load = Performance(reader)
-            elif self.drawMethod in methods:
-                load = Parameters(reader)
+            elif self.dataFrom == "configuration":
+                load = Configurations(reader)
+            else:
+                load = Process(reader)
             getattr(load, self.drawMethod)()
 
             print('#\n# Succeeded! ')
