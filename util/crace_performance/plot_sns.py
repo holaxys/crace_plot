@@ -134,7 +134,7 @@ def load_race_results(directory, repetitions=0):
     flag = False
     race_results = {}
 
-    current_folder=(os.path.split(directory))[-1]
+    current_folder=(os.path.split(directory))[-2]+'/'+(os.path.split(directory))[-1]
 
     if "irace" in current_folder \
         and os.path.exists((glob.glob(directory + r"/*/exps_irace.log"))[0]):
@@ -157,7 +157,7 @@ def load_race_results(directory, repetitions=0):
         flag = False
     
     else:
-        print("# Error: *race.train cannot be found")
+        print("# Error: crace.train cannot be found")
         print("#        input file should be ended with para* or exp*")
         exit()
 
@@ -216,7 +216,7 @@ def plot_performance_variance(folders, repetitions=0, title="", output_filename=
                 output_filename = title + ".png"
             fig.savefig(directory + "/" + output_filename, bbox_inches='tight')
 
-def plot_final_elite_results(folders, rpd, repetitions=0, title="", output_filename="output.png", show: bool = True, stest: bool=False):
+def plot_final_elite_results(folders, rpd, repetitions=0, title="", output_filename="output.png", show: bool=True, stest: bool=False):
     """
     You can either call this method directly or use the command line script (further down).
 
@@ -246,10 +246,11 @@ def plot_final_elite_results(folders, rpd, repetitions=0, title="", output_filen
                 if os.path.isdir(folder):
                     results = load_race_results(folder, repetitions)
                     avg = results['quality'].groupby(results['exp_name']).mean().to_dict()
-                    folder_name = names[i] + '_' + os.path.basename(folder)
+                    folder_name = names[i] + '/' + os.path.basename(folder)
                     for exp, quality in avg.items():
                         tmp = pd.DataFrame([[folder_name, exp, quality]], columns=['folder', 'exp_name', 'quality'])
                         all_results = pd.concat([all_results, tmp], ignore_index=True)
+            directory = os.path.dirname(directory)
         else:
             for folder in folders:
                 folder_name = folder.split("/")[-1]
@@ -263,18 +264,21 @@ def plot_final_elite_results(folders, rpd, repetitions=0, title="", output_filen
     if rpd is not None:
         all_results = compute_rpd(all_results, rpd)
 
-    sns.set()
+    sns.set(rc={'figure.figsize':(11.7,8.27)})
     fig, axis = plt.subplots()  # pylint: disable=undefined-variable
-    if show == True:
+    if bool(show) == True:
         fig = sns.boxplot(x='folder', y='quality', data=all_results, 
-                          width=0.5, whis=0.8, showfliers=False,
-                          linewidth=1, palette='Set2')
-        fig.set_xlabel('\n'+title)
-        plt.xticks(rotation=90)
+                          width=0.3, whis=0.8, showfliers=True, fliersize=1,
+                          linewidth=1, palette='Set3')
     else:
-        # axis.boxplot(all_results.values(), showfliers=False)
-        pass
-    
+        print(False)
+        fig = sns.boxplot(x='folder', y='quality', data=all_results, 
+                          width=0.3, whis=0.8, showfliers=False,
+                          linewidth=1, palette='Set3')
+    fig.set_xlabel('\n'+title, size=8)
+    fig.set_ylabel('quality', size=8)
+    plt.xticks(rotation=90, size=8)
+    plt.yticks(rotation=0, size=8)
     # if stest == 'True':
     #     order = ['irace']
     #     pairs = []
@@ -285,7 +289,7 @@ def plot_final_elite_results(folders, rpd, repetitions=0, title="", output_filen
     #             order.append(x)
     #     for x in order[1:]:
     #         pairs.append((order[0],x))
-    if stest == 'True':
+    if bool(stest) == True:
         # p_values
         p1 = sp.posthoc_wilcoxon(all_results, val_col='quality', group_col='folder')
         # p_values after multiple test correction
@@ -313,7 +317,7 @@ def plot_final_elite_results(folders, rpd, repetitions=0, title="", output_filen
         annotator.apply_and_annotate()
 
         # annotator.configure(test=None, loc='inside', 
-        #                     line_width=0.5, fontsize=7)
+        #                     line_width=0.5, fontsize=8)
         # annotator.set_pvalues(p_values)
         # annotator.annotate()
 

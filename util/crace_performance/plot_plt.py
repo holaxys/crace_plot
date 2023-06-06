@@ -171,25 +171,24 @@ def load_race_results(directory, repetitions=0):
     for i, folder_name in enumerate(race_folders):
         if 0 < repetitions <= i:
             break
-        if flag:
-            test_file_name = folder_name + "/race_log/test/exps_fin.log"
-            # print("# folder name: ",folder_name)
-        else:
+        if not flag:
             folder_name = os.path.dirname(folder_name)
-            test_file_name = folder_name + "/race_log/test/exps_fin.log"
-
+        test_file_name = folder_name + "/race_log/test/exps_fin.log"
         with open(folder_name + "/race_log/race.log", "r") as log_file:
             # print("# folder name: ", folder_name)
             race_log = json.load(log_file)
             best_id = int(race_log["best_id"])
         name = folder_name.split("/")[-1]
         test_results = []
-        with open(test_file_name, "r") as test_file:
-            for line in test_file:
-                line_result = json.loads(line)
-                if int(line_result["configuration_id"]) == best_id:
-                    test_results.append(float(line_result["quality"]))
+        with open(test_file_name, "r") as f:
+            for line in f:
+                line_results = json.loads(line)
+                current_id = int(line_results["configuration_id"])
+                current_quality = float(line_results["quality"])
+                if current_id == best_id:
+                    test_results.append(current_quality)
             race_results[name] = test_results
+        f.close
     return race_results
 
 def plot_performance_variance(folders, repetitions=0, title="", output_filename="plot.png"):
@@ -214,11 +213,6 @@ def plot_performance_variance(folders, repetitions=0, title="", output_filename=
             axis.boxplot(race_results.values())
             axis.set_xticklabels(race_results.keys(), rotation=90)
             axis.set_title(title)
-            # axis.set_facecolor('white')
-            # axis.spines['left'].set_color('black')
-            # axis.spines['bottom'].set_color('black')
-            # axis.spines['top'].set_color('black')
-            # axis.spines['right'].set_color('black')
             plt.show()  # pylint: disable=undefined-variable
             # print(os.path.dirname(folders[0]))
             if title:
@@ -226,7 +220,7 @@ def plot_performance_variance(folders, repetitions=0, title="", output_filename=
             fig.savefig(directory + "/" + output_filename, bbox_inches='tight')
 
 
-def plot_final_elite_results(folders, rpd, repetitions=0, title="", output_filename="output.png", show: bool = True):
+def plot_final_elite_results(folders, rpd, repetitions=0, title="", output_filename="output.png", show: bool = True, stest: bool=False):
     """
     You can either call this method directly or use the command line script (further down).
 
@@ -257,6 +251,7 @@ def plot_final_elite_results(folders, rpd, repetitions=0, title="", output_filen
                     results = load_race_results(folder, repetitions)
                     name = names[i] + '_' + os.path.basename(folder)
                     all_results[name] = [statistics.mean(results[x]) for x in results]
+            directory = os.path.dirname(directory)
         else:
             # print("# FOLDERS: ", folders)
             for folder in folders:
@@ -277,12 +272,7 @@ def plot_final_elite_results(folders, rpd, repetitions=0, title="", output_filen
     plt.show()  # pylint: disable=undefined-variable
     if title:
         output_filename = title + ".png"
-    # axis.set_facecolor('white')
-    # axis.spines['left'].set_color('black')
-    # axis.spines['bottom'].set_color('black')
-    # axis.spines['top'].set_color('black')
-    # axis.spines['right'].set_color('black')
-    fig.savefig(directory + "/" + output_filename, bbox_inches='tight')
+    fig.savefig(directory + "/" + output_filename, bbox_inches='tight', dpi=200)
 
     print("# Plot is saved in folder: ", directory)
 
@@ -293,9 +283,10 @@ def parse_arguments():
     parser = argparse.ArgumentParser(description="eg: python plot_plt.py ~/race/experiments/crace-2.11/acotspqap/qap/numC/para*")
     parser.add_argument('--title', '-t', default="", help="The title of the plot.")
     parser.add_argument('--repetitions', '-r', default=0, type=int, help="The number of repetitions of the experiment")
-    parser.add_argument('folder', nargs='+', help="A list of folders to include, supports glob expansion")
-    parser.add_argument("--output", '-o', default="plot.png", help="The name of the output file(.png)")
-    parser.add_argument("--showfliers", '-s', default=True, help="show fliers or not")
+    parser.add_argument("--statistical-test", "-st", default=False, help="Do statistical test or not", dest="st")
+    parser.add_argument("folder", nargs='+', help="A list of folders to include, supports glob expansion")
+    parser.add_argument("--output", "-o", default="plot.png", help="The name of the output file(.png)")
+    parser.add_argument("--showfliers", "-s", default=True, help="show fliers or not")
     parser.add_argument("--relative-difference", "-rpd", nargs='?', type=int, default=None, const=math.inf, dest="rdp",
                         help="The best known quality. If only the flag -rpd is set, "
                              "then the minimum value from the test set will be used.")
@@ -309,7 +300,6 @@ def execute_from_args():
     args = parse_arguments()
     check_for_dependencies()
     folders = expand_folder_arg(args.folder)
-    # plot_performance_variance(folders, args.repetitions, args.title, args.output)
     plot_final_elite_results(folders, args.rdp, args.repetitions, args.title, args.output, args.showfliers)
 
 
