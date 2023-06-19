@@ -8,6 +8,7 @@ fi
 DIR_irace=$1
 DIR_crace=$2
 for folder_irace in $DIR_irace/* ; do
+    echo $folder_irace
     name_irace=`echo $folder_irace | awk -F "/" '{print $NF}'`
     for folder_crace in $DIR_crace/* ; do
         name_crace=`echo $folder_crace | awk -F "/" '{print $NF}'`
