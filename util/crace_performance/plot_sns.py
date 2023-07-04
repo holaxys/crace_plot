@@ -238,10 +238,14 @@ def plot_final_elite_results(folders, rpd, repetitions=0, title="", output_filen
     else:
         directory = os.path.dirname(folders[-1])
         names = []
+        parent_names = []
         for folder in folders:
             names.append(os.path.basename(os.path.abspath(os.path.dirname(folder) + os.path.sep + '.')))
+            parent_names.append(os.path.basename(os.path.abspath(os.path.dirname(os.path.dirname(folder)) + os.path.sep + '.')))
         names_count = Counter(names)
+        parent_names_count = Counter(parent_names)
         if len(names_count.keys()) > 1:
+            # the parent name is the same
             for i, folder in enumerate(folders):
                 if os.path.isdir(folder):
                     results = load_race_results(folder, repetitions)
@@ -251,12 +255,24 @@ def plot_final_elite_results(folders, rpd, repetitions=0, title="", output_filen
                         tmp = pd.DataFrame([[folder_name, exp, quality]], columns=['folder', 'exp_name', 'quality'])
                         all_results = pd.concat([all_results, tmp], ignore_index=True)
             directory = os.path.dirname(directory)
-        else:
+        elif len(parent_names_count.keys()) == 1:
+            # the grandparent name is the same
             for folder in folders:
                 folder_name = folder.split("/")[-1]
                 if os.path.isdir(folder):
                     results = load_race_results(folder, repetitions)
                     avg = results['quality'].groupby(results['exp_name']).mean().to_dict()
+                    for exp, quality in avg.items():
+                        tmp = pd.DataFrame([[folder_name, exp, quality]], columns=['folder', 'exp_name', 'quality'])
+                        all_results = pd.concat([all_results, tmp], ignore_index=True)
+        else:
+            # the grandparent name is different 
+            # the parent name is the same
+            for i, folder in enumerate(folders):
+                if os.path.isdir(folder):
+                    results = load_race_results(folder, repetitions)
+                    avg = results['quality'].groupby(results['exp_name']).mean().to_dict()
+                    folder_name = parent_names[i] + '/' + os.path.basename(folder)
                     for exp, quality in avg.items():
                         tmp = pd.DataFrame([[folder_name, exp, quality]], columns=['folder', 'exp_name', 'quality'])
                         all_results = pd.concat([all_results, tmp], ignore_index=True)
@@ -266,15 +282,15 @@ def plot_final_elite_results(folders, rpd, repetitions=0, title="", output_filen
 
     sns.set(rc={'figure.figsize':(11.7,8.27)})
     fig, axis = plt.subplots()  # pylint: disable=undefined-variable
-    if bool(show) == True:
-        fig = sns.boxplot(x='folder', y='quality', data=all_results, 
-                          width=0.3, whis=0.8, showfliers=True, fliersize=1,
-                          linewidth=1, palette='Set3')
-    else:
-        print(False)
+    if show in ("False", "false"):
         fig = sns.boxplot(x='folder', y='quality', data=all_results, 
                           width=0.3, whis=0.8, showfliers=False,
                           linewidth=1, palette='Set3')
+    else:
+        fig = sns.boxplot(x='folder', y='quality', data=all_results, 
+                          width=0.3, whis=0.8, showfliers=True, fliersize=1,
+                          linewidth=1, palette='Set3')
+
     fig.set_xlabel('\n'+title, size=8)
     fig.set_ylabel('quality', size=8)
     plt.xticks(rotation=90, size=8)

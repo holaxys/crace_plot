@@ -15,9 +15,9 @@ for folder_irace in $DIR_irace/* ; do
         if [ $name_irace == $name_crace ] ; then
             # kind of ACOTSP, which has no sub-class
             if [ -d "$folder_irace/exp-10" ] ; then
-                rm -rf $folder_crace/numC/irace
-                mkdir -p $folder_crace/numC/irace
-                cp -rf $folder_irace/exp* $folder_crace/numC/irace/
+                rm -rf $folder_crace/irace
+                mkdir -p $folder_crace/irace
+                cp -rf $folder_irace/exp* $folder_crace/irace/
                 # echo $folder_irace
 
             # kind of stapso, which has sub-class and diffrent groups of instances
@@ -55,9 +55,9 @@ for folder_irace in $DIR_irace/* ; do
                     for folder_c in $folder_crace/* ; do
                         name_c=`echo $folder_c | awk -F "/" '{print $NF}'`
                         if [ -d "$folder_i/exp-10" ] && [ $name_i == $name_c ]; then
-                            rm -rf $folder_c/numC/irace
-                            mkdir -p $folder_c/numC/irace
-                            cp -rf $folder_i/exp* $folder_c/numC/irace/
+                            rm -rf $folder_c/irace
+                            mkdir -p $folder_c/irace
+                            cp -rf $folder_i/exp* $folder_c/irace/
                             # echo $folder_c
                         fi
                     done
