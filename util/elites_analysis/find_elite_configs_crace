@@ -81,7 +81,7 @@ function main(){
         touch $ELITES_FILE $ELITES_CONFIG
 
         # get and save the index of elite configurations
-        grep "|" crace.train | grep "," | cut -d "|" -f10 | cut -d "," -f1 | sort -n | uniq > $DIR_FILE/$ELITES_FILE
+        grep "|" crace.train | grep -E '[0-9]+$' | awk '{print $NF}' | grep -o '^[0-9]\+' | sort -n | uniq > $DIR_FILE/$ELITES_FILE
         FINAL_BEST=$(grep "Final best configuration" crace.train | tr -d " " | cut -d ":" -f2 | tr -cd "[0-9]")
         echo "Final best configuration: $FINAL_BEST" >> $ELITES_FILE
 

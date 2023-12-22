@@ -31,6 +31,7 @@ class Process:
         self.file_name = options.fileName.value
 
         self.dpi = options.dpi.value
+        self.showfliers = options.showfliers.value
 
         if options.numConfigurations.value == "elites":
             self.num_config = 5
@@ -92,8 +93,14 @@ class Process:
 
         # draw the plot
         fig, axis = plt.subplots()  # pylint: disable=undefined-variable
-        fig = sns.boxplot(x='config_id', y='quality', data=elite_results, width=0.5, fliersize=2,\
-                          linewidth=0.5, palette="Set3")
+        if self.showfliers == True:
+            fig = sns.boxplot(x='config_id', y='quality', data=elite_results, width=0.5, \
+                              showfliers=True, fliersize=2,\
+                              linewidth=0.5, palette="Set3")
+        else:
+            fig = sns.boxplot(x='config_id', y='quality', data=elite_results, width=0.5, \
+                              showfliers=False,\
+                              linewidth=0.5, palette="Set3")
         fig.set_xticklabels(elite_ids, rotation=0)
         fig.set_xlabel(exp_names)
 

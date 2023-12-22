@@ -28,6 +28,7 @@ class Performance:
         self.file_name = options.fileName.value
 
         self.dpi = options.dpi.value
+        self.showfliers = options.showfliers.value
 
         if options.numConfigurations.value == "elites":
             self.num_config = 5
@@ -98,8 +99,12 @@ class Performance:
                 for i in range(0, row):
                     for j in range(0, column):
                         data_exp = data.loc[data['exp_name']==exp_names[n]]
-                        fig = sns.boxplot(
-                            x='config_id', y='quality', data=data_exp, width=0.5, fliersize=1, linewidth=0.5, palette="Purples", ax=axis[i,j])
+                        if self.showfliers == True:
+                            fig = sns.boxplot(
+                                x='config_id', y='quality', data=data_exp, width=0.5, fliersize=1, linewidth=0.5, palette="Purples", ax=axis[i,j])
+                        else:
+                            fig = sns.boxplot(
+                                x='config_id', y='quality', data=data_exp, width=0.5, showfliers=False, linewidth=0.5, palette="Purples", ax=axis[i,j])
                         print(elite_ids[exp_names[n]])
                         fig.set_xticklabels(elite_ids[exp_names[n]], rotation=0, fontsize=10)
                         fig.set_xlabel(exp_names[n])
@@ -109,15 +114,22 @@ class Performance:
             elif num > 1:
                 for i in range(0, column):
                     data_exp = data.loc[data['exp_name']==exp_names[n]]
-                    fig = sns.boxplot(
-                        x='config_id', y='quality', data=data_exp, width=0.5, fliersize=1, linewidth=0.5, palette="Purples", ax=axis[i])
+                    if self.showfliers == True:
+                        fig = sns.boxplot(
+                            x='config_id', y='quality', data=data_exp, width=0.5, fliersize=1, linewidth=0.5, palette="Purples", ax=axis[i])
+                    else:
+                        fig = sns.boxplot(
+                            x='config_id', y='quality', data=data_exp, width=0.5, showfliers=False, linewidth=0.5, palette="Purples", ax=axis[i])
                     fig.set_xticklabels(elite_ids[exp_names[n]], rotation=0)
                     fig.set_xlabel(exp_names[n])
                     if i != 0:
                             fig.set_ylabel('')
                     n += 1 
             else:
-                fig = sns.boxplot(x='config_id', y='quality', data=data, width=0.5, fliersize=2, linewidth=0.5, palette="Purples") 
+                if self.showfliers == True:
+                    fig = sns.boxplot(x='config_id', y='quality', data=data, width=0.5, fliersize=2, linewidth=0.5, palette="Purples") 
+                else:
+                    fig = sns.boxplot(x='config_id', y='quality', data=data, width=0.5, showfliers=False, linewidth=0.5, palette="Purples") 
                 fig.set_xticklabels(elite_ids[exp_names[0]], rotation=0)
                 fig.set_xlabel(exp_names[0])
 
@@ -126,7 +138,10 @@ class Performance:
             ids = re.sub('}','',re.sub('{','',re.sub('\'','',str(elite_ids))))
             print("#   {}".format(ids))
 
-            fig = sns.boxplot(x='exp_name', y='quality', data=data, width=0.5, fliersize=2, linewidth=0.5, palette="Purples")
+            if self.showfliers == True:
+                fig = sns.boxplot(x='exp_name', y='quality', data=data, width=0.5, fliersize=2, linewidth=0.5,        palette="Purples")
+            else:
+                fig = sns.boxplot(x='exp_name', y='quality', data=data, width=0.5, showfliers=False, linewidth=0.5,        palette="Purples")
 
             fig.set_xlabel('\n{}'.format(ids))
         

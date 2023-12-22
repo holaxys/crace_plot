@@ -18,8 +18,7 @@ convert <- function(output){
   write.table(exps,"exps_irace.log",row.names = FALSE, col.names = TRUE, sep = ",")
 }
 
-# setwd("/Users/xys/Library/CloudStorage/OneDrive-Personal/01_PhD/01_irace/Experiments/irace-r/")
-dirs <- "/home/ysxiao/race/experiments/irace-r/acotspqap/tsp/irace_ttest"
+dirs <- "/home/ysxiao/race/experiments/irace/5000"
 dir_names <- list.dirs(dirs, full.names = TRUE, recursive = TRUE)
 
 out_parrent_names <- list()

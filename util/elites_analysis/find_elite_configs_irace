@@ -48,33 +48,12 @@ function search_elite_configs(){
     cd $dir
 
     # read the index of configurations
-    line=$(cat irace.train | grep -A 2 "Description of the best-so-far configuration:" | grep $config_id | uniq | sed "s/[ ][ ]*/,/g")
-    algorithm=$(echo $line | cut -d "," -f3)
-    localsearch=$(echo $line | cut -d "," -f4)
-    alpha=$(echo $line | cut -d "," -f5)
-    beta=$(echo $line | cut -d "," -f6)
-    rho=$(echo $line | cut -d "," -f7)
-    ants=$(echo $line | cut -d "," -f8)
-    q0=$(echo $line | cut -d "," -f9)
-    rasrank=$(echo $line | cut -d "," -f10)
-    elitistants=$(echo $line | cut -d "," -f11)
-    nnls=$(echo $line | cut -d "," -f12)
-    dlb=$(echo $line | cut -d "," -f13)
+    config=$(cat irace.train | grep -A 2 "Description of the best-so-far configuration:" | grep $config_id | uniq | sed "s/[ ][ ]*/,/g" | cut -d ',' -f2-)
 
-    outline="$config_id,"
-    if [[ $algorithm != "NA" ]] ; then outline=$outline" --$algorithm"; fi
-    if [[ $localsearch != "NA" ]] ; then outline=$outline" --localsearch $localsearch"; fi
-    if [[ $alpha != "NA" ]] ; then outline=$outline" --alpha $alpha"; fi
-    if [[ $beta != "NA" ]] ; then outline=$outline" --beta $beta"; fi
-    if [[ $rho != "NA" ]] ; then outline=$outline" --rho $rho"; fi
-    if [[ $ants != "NA" ]] ; then outline=$outline" --ants $ants"; fi
-    if [[ $q0 != "NA" ]] ; then outline=$outline" --q0 $q0"; fi
-    if [[ $rasrank != "NA" ]] ; then outline=$outline" --rasrank $rasrank"; fi
-    if [[ $elitistants != "NA" ]] ; then outline=$outline" --elitistants $elitistants"; fi
-    if [[ $nnls != "NA" ]] ; then outline=$outline" --nnls $nnls"; fi
-    if [[ $dlb != "NA" ]] ; then outline=$outline" --dlb $dlb"; fi
+    echo "$config" >> $ELITES_CONFIG
 
-    echo "$outline" >> $ELITES_CONFIG
+    sed -i 's/,/\t/g' $ELITES_CONFIG
+
 }
 
 function main(){
@@ -86,7 +65,7 @@ function main(){
 	#   OUTPUT:		none
 	# ----------------------------------------------------------------------------------------
 
-    find $DIR_EXP -type f | grep "irace" | grep "irace.train" | while read file_line
+    find -L $DIR_EXP -type f | grep "irace.train" | while read file_line
     do
         # get the dir of each irace.train file
         DIR_FILE=${file_line%/*}
@@ -105,6 +84,8 @@ function main(){
 
         FINAL_BEST=$(tail -n 1 "race_irace.log")
         echo "Final best configuration: $FINAL_BEST" >> $ELITES_FILE
+
+        grep -A 1 "Description of the best-so-far configuration:" irace.train | grep "ID" | sed 's/\.//g' | sed "s/[ ][ ]*/\t/g" | uniq | cut -f2- > $ELITES_CONFIG
 
         # check config.log in folder race_log
         cat $ELITES_FILE | while read line

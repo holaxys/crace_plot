@@ -156,5 +156,15 @@
         "section": "Draw plot",
         "description": "The parameter dpi used for saving plot.",
         "vignettes": "When method used to draw a plot will export a plot file, this parameter will be added to control the quality of the exported plot."
+    },
+    {
+        "name": "showfliers",
+        "type": "b",
+        "short": "-s",
+        "long": "--showfliers",
+        "default": 1,
+        "section": "Draw plot",
+        "description": "The parameter showfliers used for saving plot.",
+        "vignettes": "Enable\/disable showfliers when drawing the picture."
     }
 ]

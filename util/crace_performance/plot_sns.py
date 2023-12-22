@@ -188,7 +188,7 @@ def load_race_results(directory, repetitions=0):
         f.close
     return test_results
 
-def plot_performance_variance(folders, repetitions=0, title="", output_filename="plot.png"):
+def plot_performance_variance(folders, repetitions=0, title="", output_filename="plot"):
     """
     Plot the variance of independent runs of race.
 
@@ -212,11 +212,10 @@ def plot_performance_variance(folders, repetitions=0, title="", output_filename=
             axis.set_title(title)
             plt.show()  # pylint: disable=undefined-variable
             # print(os.path.dirname(folders[0]))
-            if title:
-                output_filename = title + ".png"
-            fig.savefig(directory + "/" + output_filename, bbox_inches='tight')
+            if title: output_filename = title
+            fig.savefig(directory + "/" + output_filename + '.png', bbox_inches='tight')
 
-def plot_final_elite_results(folders, rpd, repetitions=0, title="", output_filename="output.png", show: bool=True, stest: bool=False):
+def plot_final_elite_results(folders, rpd, repetitions=0, title="", output_filename="output", show: bool=True, stest: bool=False):
     """
     You can either call this method directly or use the command line script (further down).
 
@@ -236,7 +235,9 @@ def plot_final_elite_results(folders, rpd, repetitions=0, title="", output_filen
         else:
             all_results[folders[0].split("/")[-2]] = [statistics.mean(results[x]) for x in results]
     else:
-        directory = os.path.dirname(folders[-1])
+        # directory = os.path.dirname(folders[-1])
+        filtered_paths = [path for path in folders if not path.endswith("irace")]
+        directory = os.path.commonpath(filtered_paths)
         names = []
         parent_names = []
         for folder in folders:
@@ -254,7 +255,7 @@ def plot_final_elite_results(folders, rpd, repetitions=0, title="", output_filen
                     for exp, quality in avg.items():
                         tmp = pd.DataFrame([[folder_name, exp, quality]], columns=['folder', 'exp_name', 'quality'])
                         all_results = pd.concat([all_results, tmp], ignore_index=True)
-            directory = os.path.dirname(directory)
+            # directory = os.path.dirname(directory)
         elif len(parent_names_count.keys()) == 1:
             # the grandparent name is the same
             for folder in folders:
@@ -305,7 +306,11 @@ def plot_final_elite_results(folders, rpd, repetitions=0, title="", output_filen
     #             order.append(x)
     #     for x in order[1:]:
     #         pairs.append((order[0],x))
-    if bool(stest) == True:
+
+    if title: output_filename = title
+
+    if stest in (True, "True", "ture"):
+        plog = output_filename
         # p_values
         p1 = sp.posthoc_wilcoxon(all_results, val_col='quality', group_col='folder')
         # p_values after multiple test correction
@@ -313,6 +318,11 @@ def plot_final_elite_results(folders, rpd, repetitions=0, title="", output_filen
                                 p_adjust='fdr_bh')
         print("Original p_values caculated by 'Wilcoxon':\n", p1)
         print("New p_values corrected by 'fdr_bh':\n", p2)
+
+        with open(directory + "/" + plog + '.log', 'w') as f1:
+            print("Original p_values caculated by 'Wilcoxon':\n", p1, file=f1)
+            print("\nNew p_values corrected by 'fdr_bh':\n", p2, file=f1)
+            print("\n", file=f1)
 
         order = []
         pairs = []
@@ -330,17 +340,24 @@ def plot_final_elite_results(folders, rpd, repetitions=0, title="", output_filen
                             data=all_results, x='folder', y='quality')
         annotator.configure(test='Wilcoxon', text_format='star', comparisons_correction='fdr_bh',
                             line_width=0.5, fontsize=8)
-        annotator.apply_and_annotate()
+        # annotator.apply_and_annotate()
+
+        with open(directory + "/" + plog + '.log', 'a') as f1:
+            original_stdout = sys.stdout
+            sys.stdout = f1
+
+            try:
+                annotator.apply_and_annotate()
+            finally:
+                sys.stdout = original_stdout
 
         # annotator.configure(test=None, loc='inside', 
         #                     line_width=0.5, fontsize=8)
         # annotator.set_pvalues(p_values)
         # annotator.annotate()
 
-    if title:
-        output_filename = title + ".png"
     plot = fig.get_figure()
-    plot.savefig(directory + "/" + output_filename, bbox_inches='tight', dpi=200)
+    plot.savefig(directory + "/" + output_filename + '.png', bbox_inches='tight', dpi=200)
 
     print("# Plot is saved in folder: ", directory)
 

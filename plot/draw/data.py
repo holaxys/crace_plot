@@ -5,7 +5,7 @@ import sys
 import pandas as pd
 
 from plot.containers.read_options import ReadOptions
-from plot.errors import ParameterValueError
+from plot.errors import OptionError
 
 class ReadResults:
     def __init__(self, folders, options: ReadOptions):
@@ -94,6 +94,8 @@ class ReadResults:
             all_data, config_ids, elite_ids = self.elites_process()
         elif self.num_config == -1:
             all_data, config_ids, elite_ids = self.all_elite_process()
+        else:
+            raise OptionError("The parameter 'num-configurations' can only be 'elites' or 'allelites'.")
 
         return all_data, config_ids, elite_ids
 

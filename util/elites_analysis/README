@@ -18,3 +18,17 @@
 
 # ================================================================================================
 
+# For crace results:
+#   1. use ./find_elite_configs_crace /path/to/crace 
+#      to find out all elite configurations appear in the crace procedure. 
+#   2. use ./elites_on_instances /path/to/crace /path/to/instance
+#      to execute elite(s) on the provided configurations. 
+
+# For irace results:
+#   1. use R script "R2CSV.r" to find out the elitist and elite configurations
+#      and storage the information in the format used in crace results ("elites.log").
+#   2. use ./find_elite_configs_irace /path/to/irace
+#      to find out all elite configurations appear in the irace procedure. 
+#      The related configurations are storaged in the similar format used in scenario/default.txt
+#   3. ??
+

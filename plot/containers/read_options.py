@@ -65,7 +65,7 @@ def print_help():
         if o.short is not None and o.short != "":
             print("#\n# {:<4}, {:<29}{}".format(o.short, o.long, o.description))
         else:
-            print("#\n# {:<4}{:<31}{}".format(o.short,o.long, o.description))
+            print("#\n# {:<6}{:<29}{}".format(o.short,o.long, o.description))
         if o.default is not None or o.default != "":
             print("# {:<35}Default: {}".format('', o.default))
         if o.type in ['i', 's']:
@@ -181,6 +181,11 @@ class ReadOptions:
                 self.set_option(o, True)
                 arguments[index[o]] = None
             elif self.get_option(o).short != '-m': 
+                if self.get_option(o).type == 'b':
+                    if arguments[index[o]+1] != 0:
+                        self.set_option(o, True)
+                    else:
+                        self.set_option(o, False)
                 self.set_option(o, arguments[index[o]+1])
                 arguments[index[o]] = arguments[index[o]+1] = None
             else:
