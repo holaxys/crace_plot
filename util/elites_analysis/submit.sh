@@ -11,7 +11,7 @@ EXPDIR=$1
 # INSFILE=/home/ysxiao/irace/instances/tsp/instances/list_200_test_78
 INSFILE="instances.log"
 
-CURRENT_DIR=/home/ysxiao/race/github-irace/util/elites_analysis
+CURRENT_DIR=/home/ysxiao/race/dev_crace/plot-crace/util/elites_analysis
 
 # only crace
 ###########################################################################################

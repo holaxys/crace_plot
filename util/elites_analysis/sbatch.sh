@@ -19,7 +19,7 @@ fi
 EXPDIR=$1
 INSFILE=$2
 
-EXECDIR=/home/ysxiao/race/github-irace/util/elites_analysis
+EXECDIR=/home/ysxiao/race/dev_crace/plot-crace/util/elites_analysis
 
 JOBNAME=elite
 MACHINE=Epyc7452
