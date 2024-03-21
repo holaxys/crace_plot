@@ -9,9 +9,9 @@ import seaborn as sns
 from plot.containers.read_options import ReadOptions
 from plot.draw.data import ReadResults
 
-sns.set(rc={'figure.figsize':(11.7,8.27)})
+sns.set_theme(rc={'figure.figsize':(11.7,8.27)})
 
-class Process:
+class Configurations:
     """
     Class defines a list of methods used to compare the performance of sampled configurations from Crace
     :ivar exec_dir: the directory of Crace results
@@ -52,7 +52,7 @@ class Process:
                       for dir in dirs if dir == 'race_log' ])
         print("# Loading Crace results..")
         self.load = ReadResults(exp_folders, options)
-        self.all_results, self.exp_names, self.elite_ids = self.load.load_for_process()
+        self.all_results, self.exp_names, self.elite_ids = self.load.load_for_configurations()
 
     def boxplot(self):
         """

@@ -1,0 +1,49 @@
+#bin/bash
+
+if [ $# == 0 ]; then
+    echo "Usage: ./time <DIR_OF_CRACE> \neg: ./time /path/to/irace"
+    exit 1
+fi
+
+DIR_race=$*
+
+TIME_LOG="time.log"
+
+echo "\`-reading..."
+
+for folder in $DIR_race; do
+    echo -e "$(date "+%Y-%m-%d %H:%M:%S") Time consuming: \n" > $folder/$TIME_LOG
+    find $folder -type f -name "irace.train" | sort -n | while read line
+    do
+        EXP_DIR=${line%/*}
+        RELATIVE_EXP_DIR=$( realpath --relative-to=$folder $EXP_DIR )
+        time1=$( cat "$EXP_DIR/irace.train" | grep "START" | cut -d ':' -f2- )
+        time2=$( cat "$EXP_DIR/irace.train" | grep "Stopped" | cut -d ':' -f1,3 | cut -d ' ' -f2,3)
+        epoch1=$(date -d "$time1" +%s)
+        epoch2=$(date -d "$time2" +%s)
+        diffSec=$((epoch2 - epoch1))
+
+        diffHr=$(echo "$diffSec" | awk '{printf "%.2f", $1/3600}')
+
+        budget=$( cat "$EXP_DIR/irace.train" | grep "Estimating execution time using 0.3% of" | awk '{for(i=1;i<=NF;i++) if ($i=="of") print $(i+1)}' )
+        estimation=$( cat "$EXP_DIR/irace.train" | grep "Estimating execution time using 0.3% of" | awk '{print $NF}' )
+        boundMax=$( cat "$EXP_DIR/irace.train" | grep "boundMax" | cut -d ' ' -f3 )
+
+        parallel=$( cat "$EXP_DIR/irace.train" | grep "\-\-parallel" )
+        if [[ ! $parallel =~ ^[-+0-9.e]+$ ]]; then
+            parallel=1
+        fi
+
+        scenario=$( cat "$EXP_DIR/irace.train" | grep "\-\-scenario" | awk '{print $NF}' ) 
+
+        echo -e $RELATIVE_EXP_DIR: '\n' \
+        \ Budget: $budget \(Estimation: $estimation\), '\t'boundMax: $boundMax '\n' \
+        \ Scenario: ${scenario} '\n' \
+        \ Parallel: $parallel '\n' \
+        \ Start time: $time1, '\t'Stop time: $time2 '\n' \
+        \ Time difference: $diffHr Hour\(s\) '\n' >> $folder/$TIME_LOG
+    done
+    echo "|-- $folder/$TIME_LOG is saved."
+done
+
+echo "\`--finished!"

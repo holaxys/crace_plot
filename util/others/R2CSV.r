@@ -18,7 +18,7 @@ convert <- function(output){
   write.table(exps,"exps_irace.log",row.names = FALSE, col.names = TRUE, sep = ",")
 }
 
-dirs <- "/home/ysxiao/race/experiments/irace/5000"
+dirs <- "/home/ysxiao/race/experiments/irace/5000/saqap"
 dir_names <- list.dirs(dirs, full.names = TRUE, recursive = TRUE)
 
 out_parrent_names <- list()

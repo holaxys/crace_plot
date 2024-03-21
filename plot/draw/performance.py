@@ -6,7 +6,7 @@ import seaborn as sns
 from plot.containers.read_options import ReadOptions
 from plot.draw.data import ReadResults
 
-sns.set(rc={'figure.figsize':(11.7,8.27)})
+sns.set_theme(rc={'figure.figsize':(11.7,8.27)})
 
 class Performance:
     """

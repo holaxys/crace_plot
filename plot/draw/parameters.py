@@ -8,7 +8,7 @@ import sys
 import numpy as np
 import pandas as pd
 import seaborn as sns
-sns.set(rc={'figure.figsize':(11.7,3)})
+sns.set_theme(rc={'figure.figsize':(11.7,3)})
 sns.set_style('white')
 
 
@@ -19,9 +19,9 @@ import matplotlib.pyplot as plt
 
 from plot.containers.read_options import ReadOptions
 from plot.draw.data import ReadResults
+from plot.errors import OptionError, ParameterValueError
 
-
-class Configurations:
+class Parameters:
     """
     Class defines a list of methods used to compare configurations from Crace
     :ivar exec_dir: the directory of Crace results
@@ -67,7 +67,8 @@ class Configurations:
         print("# Loading Crace results..")
         self.load = ReadResults(exp_folders, options)
 
-        self.all_results, self.exp_names, self.elite_ids, self.parameters = self.load.load_for_configs_data()
+        self.all_results, self.exp_names, self.elite_ids, self.parameters = self.load.load_for_parameters()
+        self.all_results = self.all_results.replace(['null'], np.nan)
 
         print("#\n# The Crace results:")
         print(self.all_results,)
@@ -104,7 +105,19 @@ class Configurations:
         call the function to draw distplot
         """
         self.draw_histplot(self.all_results, self.parameters)
-    
+
+    def boxplot(self):
+        """
+        call the function to draw distplot
+        """
+        self.draw_boxplot(self.all_results, self.parameters)
+
+    def heatmap(self):
+        """
+        call the function to draw distplot
+        """
+        self.draw_heatmap(self.all_results, self.parameters)
+
     def jointplot(self):
         """
         call the function to draw jointplot
@@ -462,14 +475,21 @@ class Configurations:
         """
 
         sns.set_style('whitegrid')
-        sns.set(font_scale=0.9)
+        sns.set_theme(font_scale=0.9)
 
         param_names = []
+        param_types = []
         if self.multi_params is not None:
             for x in self.multi_params.split(','):
                 param_names.append(x)
         else:
             param_names = list(parameters.keys())
+
+        for x in param_names:
+            param_types.append(parameters[x]['type'])
+        
+        print("\n# The parameters selected to be visualised: \n#  {}".format(param_names))
+        print("\n# The type of selected parameters:  \n#  {}".format(param_types))
 
         data_new = data.copy()
 
@@ -495,32 +515,43 @@ class Configurations:
         file_names = locals()
         start = 0
         for i in range(0, page_num):
-            fig, axis = plt.subplots(1, 3, sharey=False, sharex=False)
-            # fig, axis = plt.subplots(2, 4, sharey=False, sharex=False)
+            # fig, axis = plt.subplots(1, 3, sharey=False, sharex=False)
+            fig, axis = plt.subplots(2, 4, sharey=False, sharex=False)
             plt.subplots_adjust(hspace=0.5, wspace=0.4, bottom=0.2)
             title = '\nPage ' + str(i+1) + ' of ' + str(page_num)
             
             if start+7 <= len(param_names):
-                params['params%s' % i] = param_names[start:start+8]               
+                params['params%s' % i] = param_names[start:start+8]
             else:
                 num = len(param_names) - start
                 params['params%s' % i] = param_names[start:]              
             start = start+8
             file_names['plot%s' % i] = self.file_name.split('.')[0]+str(i)   
 
-            row = column = 0
-            for name in params['params%s' % i]:
-                fig = sns.histplot(data=data_new.sort_values(by=name, na_position='last', ascending=True),
-                                   x=name, stat='frequency', kde=True, 
-                                   ax=axis[column])
-                if parameters[name]['type'] != 'c':
-                    fig = sns.rugplot(data=data_new.sort_values(by=name, na_position='last', ascending=True),
-                                    x=name, ax=axis[column])
-                if len(name) > 25:
-                    name = re.sub(r"(.{25})", "\\1\n", name)
-                if column != 0:
-                    fig.set_ylabel('')
-                fig.set_xlabel('\n'+name, rotation=0)
+            page_plots = min(8, len(params['params%s' % i]))
+
+            row = column = idx = 0
+            for idx in range(8):
+                ax = axis[row, column]
+                if idx < page_plots:
+                    name = params['params%s' % i][idx]
+                    if parameters[name]['type'] != 'c':
+                        fig = sns.histplot(data=data_new.sort_values(by=name, na_position='last', ascending=True),
+                                        x=name, stat='frequency', kde=True, 
+                                        ax=ax)
+                        fig = sns.rugplot(data=data_new.sort_values(by=name, na_position='last', ascending=True),
+                                        x=name, ax=ax)
+                    else:
+                        fig = sns.histplot(data=data_new.sort_values(by=name, na_position='last', ascending=True),
+                                            x=name, stat='frequency', kde=False, 
+                                            ax=ax)
+                    if len(name) > 25:
+                        name = re.sub(r"(.{25})", "\\1\n", name)
+                    if column != 0:
+                        fig.set_ylabel('')
+                    fig.set_xlabel('\n'+name, rotation=0)
+                else:
+                    ax.axis('off')
 
                 if column < 3:
                     column += 1
@@ -529,20 +560,149 @@ class Configurations:
                     row += 1 
 
             plot = fig.get_figure()
-            file_name = file_names['plot%s' % i]
-                        
-            # if num < 8:
-            #     del_r = math.floor(num/4)
-            #     del_c = num%4
-            #     for i in range(del_r, 2):
-            #         while del_c < 4:
-            #             plt.delaxes(axis[i, del_c])
-            #             del_c += 1
-            #         del_c = 0        
+            file_name = file_names['plot%s' % i]       
             
             plt.suptitle(self.title, size=15)
             plot.savefig(file_name, dpi=self.dpi)
             print("# {} has been saved.".format(file_name))
+
+    def draw_boxplot(self, data, parameters):
+        """
+        Use provided data to draw distplot
+        """
+
+        sns.set_style('whitegrid')
+        sns.set_theme(font_scale=0.9)
+
+        param_names = []
+        param_types = []
+        if self.multi_params is not None:
+            for x in self.multi_params.split(','):
+                if parameters[x]['type'] != 'c':
+                    param_names.append(x)
+            if len(param_names) == 0:
+                raise OptionError("!   Required parameters must not categorical for boxplot.")
+        else:
+            for k, i in parameters.items():
+                if i['type'] != 'c':
+                    param_names.append(k)
+
+        for x in param_names:
+            param_types.append(parameters[x]['type'])
+        
+        print("\n# The parameters selected to be visualised: \n#  {}".format(param_names))
+        print("\n# The type of selected parameters:  \n#  {}".format(param_types))
+
+        data_new = data.copy()
+
+        for name in parameters.keys():
+            per = list(data[name]).count('null')/len(data)
+            if per == float(1):
+                print("! WARNING: all values in {} are 'null', it will be deleted for the plot!".format(name))
+                param_names.pop(param_names.index(name))
+            elif per > 0:
+                data_new[name].replace('null', np.nan, inplace=True)
+
+        col = data_new.count() == 0
+        for i in range(len(col)):
+            if col[i] and col.index[i] in param_names:
+                print("! WARNING: all values in {} are NaN, it will be deleted for the plot!".format(col.index[i]) )
+                param_names.pop(param_names.index((col.index[i])))
+
+        print("#")
+
+        num = 6
+        page_num = math.ceil(len(param_names)/6)
+        params = locals()
+        file_names = locals()
+        start = 0
+        for i in range(0, page_num):
+            fig, axis = plt.subplots(2, 3, sharey=False, sharex=False)
+            plt.subplots_adjust(hspace=0.5, wspace=0.4, bottom=0.2)
+            title = '\nPage ' + str(i+1) + ' of ' + str(page_num)
+            
+            if start+7 <= len(param_names):
+                params['params%s' % i] = param_names[start:start+6]
+            else:
+                num = len(param_names) - start
+                params['params%s' % i] = param_names[start:]              
+            start = start+6
+            file_names['plot%s' % i] = self.file_name.split('.')[0]+str(i)   
+
+            page_plots = min(6, len(params['params%s' % i]))
+
+            row = column = idx = 0
+            for idx in range(6):
+                ax = axis[row, column]
+                if idx < page_plots:
+                    name = params['params%s' % i][idx]
+                    fig = sns.boxplot(data=data_new,
+                        x=name, y='n_slice', width=0.5, fliersize=1, linewidth=0.5,
+                        orient='h', palette="Set3", ax=ax)
+                    if len(name) > 25:
+                        name = re.sub(r"(.{25})", "\\1\n", name)
+                    if column != 0:
+                        fig.set_ylabel('')
+                    fig.set_xlabel('\n'+name, rotation=0)
+                else:
+                    ax.axis('off')
+
+                if column < 2:
+                    column += 1
+                else:
+                    column = 0
+                    row += 1 
+
+            plot = fig.get_figure()
+            file_name = file_names['plot%s' % i]       
+            
+            plt.suptitle(self.title, size=15)
+            plot.savefig(file_name, dpi=self.dpi)
+            print("# {} has been saved.".format(file_name))
+
+    def draw_heatmap(self, data, parameters):
+        """
+        Use provided data to draw distplot
+        """
+
+        sns.set_style('whitegrid')
+        sns.set_theme(font_scale=0.9)
+
+        param_names = []
+        param_types = []
+        for x in self.multi_params.split(','):
+            param_names.append(x)
+
+        for x in param_names:
+            param_types.append(parameters[x]['type'])
+        
+        print("\n# The parameters selected to be visualised: \n#  {}".format(param_names))
+        print("\n# The type of selected parameters:  \n#  {}".format(param_types))
+
+        data_new = data.copy()
+        for name in parameters.keys():
+            per = list(data[name]).count('null')/len(data)
+            if per == float(1):
+                print("! WARNING: all values in {} are 'null', it will be deleted for the plot!".format(name))
+                param_names.pop(param_names.index(name))
+            elif per > 0:
+                data_new[name].replace('null', np.nan, inplace=True)
+
+        col = data_new.count() == 0
+        for i in range(len(col)):
+            if col[i] and col.index[i] in param_names:
+                print("! WARNING: all values in {} are NaN, it will be deleted for the plot!".format(col.index[i]) )
+                param_names.pop(param_names.index((col.index[i])))
+
+        print("#")
+
+        if len(param_names) < 2:
+            pivot_table = data_new.pivot_table(index='n_slice', columns=param_names[0], values='config_id', aggfunc='count')
+        else:
+            pivot_table = data_new.pivot_table(index=param_names[0], columns=param_names[1], values='config_id', aggfunc='count')
+        fig = sns.heatmap(pivot_table, annot=True, cmap='PuBu', fmt="g") 
+        fig.get_figure().savefig(self.file_name, dpi=self.dpi)
+        print("# {} has been saved.".format(self.file_name))
 
     def draw_jointplot(self, data, exp_names, parameters):
         """

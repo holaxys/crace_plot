@@ -1,17 +1,13 @@
 import sys
-import logging
 
 import plot.containers.read_options as rd
 from plot.draw.plot import DrawPlot
-
-asyncio_logger = logging.getLogger("asyncio")
 
 def start_cmdline(arguments=None):
     """
     Function that executes the crace plot with arguments from the command line
 
     :param arguments: 
-    :return: return drawMethod[], execDir, outDir
     """
 
     args = arguments[1:]

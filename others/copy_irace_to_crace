@@ -1,0 +1,144 @@
+#bin/bash
+
+if [ $# == 0 ]; then
+    echo "Usage: ./copy_irace_to_crace <DIR_OF_IRACE> <DIR_OF CRACE> \neg: ./copy_irace_to_crace ../irace-r ../crace-2.11"
+    exit 1
+fi
+
+DIR_irace=$1
+DIR_crace=$2
+for folder_irace in $DIR_irace/* ; do
+    # echo "folder_irace: " $folder_irace
+    name=`echo $folder_irace | awk -F "/" '{print $NF}'`
+    # echo $name
+    if ! [ -d "$folder_irace/exp-10" ] ; then
+        for folder_irace_sub in $folder_irace/* ; do
+            if [ -d $folder_irace_sub ] ; then
+                # echo "folder_irace_sub: " $folder_irace_sub
+                name_sub=`echo $folder_irace_sub | awk -F "/" '{print $NF}'`
+                # echo $name_sub
+                if ! [ -d "$folder_irace_sub/exp-10" ] ; then
+                    for folder_irace_sub_sub in $folder_irace_sub/* ; do
+                        if [ -d $folder_irace_sub_sub ] ; then
+                            name_sub_sub=`echo $folder_irace_sub_sub | awk -F "/" '{print $NF}'`
+                            if ! [ -d "$folder_irace_sub_sub/exp-10" ] ; then
+                                for folder_irace_sub_sub_sub in $folder_irace_sub_sub/* ; do    
+                                    if [ -d $folder_irace_sub_sub_sub ] ; then
+                                        name_sub_sub_sub=`echo $folder_irace_sub_sub_sub | awk -F "/" '{print $NF}'`
+                                        if ! [ -d "$folder_irace_sub_sub_sub/exp-10" ] ; then
+                                            for folder_irace_sub_sub_sub_sub in $folder_irace_sub_sub_sub/* ; do
+                                                if [ -d $folder_irace_sub_sub_sub_sub ] ; then
+                                                    name_sub_sub_sub_sub=`echo $folder_irace_sub_sub_sub_sub | awk -F "/" '{print $NF}'`
+                                                    folder_crace=$DIR_crace/$name/$name_sub/$name_sub_sub/$name_sub_sub_sub/$name_sub_sub_sub_sub
+                                                    if [ -d $folder_crace ] ; then
+                                                        echo "Folder: $folder_crace"
+                                                        # echo $folder_crace
+                                                        if ! [ -d "$folder_crace/irace" ] ; then
+                                                            irace_train_files_1=(`ls $folder_irace_sub_sub_sub_sub`)
+                                                            num_1=${#irace_train_files_1[@]} 
+                                                            irace_train_files_2=(`find $folder_irace_sub_sub_sub_sub | grep "irace.train" `)
+                                                            num_2=${#irace_train_files_2[@]} 
+                                                            # echo $num_1, $num_2
+                                                            if [ $num_1 == $num_2 ] ; then
+                                                                # mkdir -p $folder_crace/irace
+                                                                # cp -rf $folder_irace_sub_sub_sub/exp-* $folder_crace/irace/
+                                                                ln -s $folder_irace_sub_sub_sub_sub $folder_crace/irace
+                                                                echo -e " irace is copied here\n"
+                                                            else
+                                                                echo -e " ! irace is not finished\n"
+                                                            fi
+                                                        else 
+                                                            echo -e " ! irace is exsiting here\n"
+                                                        fi
+                                                    else
+                                                        echo -e "! $folder_crace is not existing\n"
+                                                    fi
+                                                fi
+                                            done     
+                                        fi
+                                    else
+                                        folder_crace=$DIR_crace/$name/$name_sub/$name_sub_sub/$name_sub_sub_sub
+                                        if [ -d $folder_crace ] ; then
+                                            echo "Folder: $folder_crace"
+                                            # echo $folder_crace
+                                            if ! [ -d "$folder_crace/irace" ] ; then
+                                                irace_train_files_1=(`ls $folder_irace_sub_sub_sub`)
+                                                num_1=${#irace_train_files_1[@]} 
+                                                irace_train_files_2=(`find $folder_irace_sub_sub_sub | grep "irace.train" `)
+                                                num_2=${#irace_train_files_2[@]} 
+                                                # echo $num_1, $num_2
+                                                if [ $num_1 == $num_2 ] ; then
+                                                    # mkdir -p $folder_crace/irace
+                                                    # cp -rf $folder_irace_sub_sub_sub/exp-* $folder_crace/irace/
+                                                    ln -s $folder_irace_sub_sub_sub $folder_crace/irace
+                                                    echo -e " irace is copied here\n"
+                                                else
+                                                    echo -e " ! irace is not finished\n"
+                                                fi
+                                            else 
+                                                echo -e " ! irace is exsiting here\n"
+                                            fi
+                                        else
+                                            echo -e "! $folder_crace is not existing\n"
+                                        fi
+                                    fi
+                                done
+                            else
+                                folder_crace=$DIR_crace/$name/$name_sub/$name_sub_sub
+                                if [ -d $folder_crace ] ; then
+                                    echo "Folder: $folder_crace"
+                                    # echo $folder_crace
+                                    if ! [ -d "$folder_crace/irace" ] ; then
+                                        irace_train_files_1=(`ls $folder_irace_sub_sub`)
+                                        num_1=${#irace_train_files_1[@]} 
+                                        irace_train_files_2=(`find $folder_irace_sub_sub | grep "irace.train" `)
+                                        num_2=${#irace_train_files_2[@]} 
+                                        # echo $num_1, $num_2
+                                        if [ $num_1 == $num_2 ] ; then
+                                            # mkdir -p $folder_crace/irace
+                                            # cp -rf $folder_irace_sub_sub/exp-* $folder_crace/irace/
+                                            ln -s $folder_irace_sub_sub $folder_crace/irace
+                                            echo -e " irace is copied here\n"
+                                        else
+                                            echo -e " ! irace is not finished\n"
+                                        fi
+                                    else 
+                                        echo -e " ! irace is exsiting here\n"
+                                    fi 
+                                else
+                                    echo -e "! $folder_crace is not existing\n"
+                                fi
+                            fi
+                        fi
+                    done
+                else
+                    folder_crace=$DIR_crace/$name/$name_sub
+                    if [ -d $folder_crace ] ; then
+                        echo "Folder: $folder_crace"
+                        if ! [ -d "$folder_crace/irace" ] ; then
+                            irace_train_files_1=(`ls $folder_irace_sub`)
+                            num_1=${#irace_train_files_1[@]} 
+                            irace_train_files_2=(`find $folder_irace_sub | grep "irace.train" `)
+                            num_2=${#irace_train_files_2[@]} 
+                            # echo $num_1, $num_2
+                            if [ $num_1 == $num_2 ] ; then
+                                # mkdir -p $folder_crace/irace
+                                # cp -rf $folder_irace_sub/exp-* $folder_crace/irace/
+                                ln -s $folder_irace_sub $folder_crace/irace
+                                echo -e " irace is copied here\n"
+                            else
+                                echo -e " ! irace is not finished\n"
+                            fi
+                        else 
+                            echo -e " ! irace is exsiting here\n"
+                        fi 
+                    else
+                        echo -e "! $folder_crace is not existing\n"
+                    fi
+                fi
+            fi
+        done
+    else
+        name_irace=`echo $folder_irace | awk -F "/" '{print $NF}'`
+    fi
+done

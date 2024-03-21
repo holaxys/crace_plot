@@ -1,9 +1,0 @@
-./submit.sh /home/ysxiao/irace/experiments/crace-2.11/acotsp/numC/para8_numC1
-./submit.sh /home/ysxiao/irace/experiments/crace-2.11/acotsp/numC/para8_numC2
-./submit.sh /home/ysxiao/irace/experiments/crace-2.11/acotsp/numC/para8_numC4
-./submit.sh /home/ysxiao/irace/experiments/crace-2.11/acotsp/numC/para32_numC1
-./submit.sh /home/ysxiao/irace/experiments/crace-2.11/acotsp/numC/para32_numC2
-./submit.sh /home/ysxiao/irace/experiments/crace-2.11/acotsp/numC/para32_numC4
-./submit.sh /home/ysxiao/irace/experiments/crace-2.11/acotsp/numC/para128_numC1
-./submit.sh /home/ysxiao/irace/experiments/crace-2.11/acotsp/numC/para128_numC2
-./submit.sh /home/ysxiao/irace/experiments/crace-2.11/acotsp/numC/para128_numC4

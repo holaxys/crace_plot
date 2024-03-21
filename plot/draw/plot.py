@@ -3,8 +3,8 @@ import traceback
 
 from plot.containers.read_options import ReadOptions
 from plot.draw.performance import Performance
-from plot.draw.configuration import Configurations
-from plot.draw.process import Process
+from plot.draw.parameters import Parameters
+from plot.draw.configurations import Configurations
 
 class DrawPlot:
     """
@@ -21,10 +21,10 @@ class DrawPlot:
         try:
             if self.dataFrom == "quality":
                 load = Performance(reader)
-            elif self.dataFrom == "configuration":
-                load = Configurations(reader)
+            elif self.dataFrom == "parameters":
+                load = Parameters(reader)
             else:
-                load = Process(reader)
+                load = Configurations(reader)
             getattr(load, self.drawMethod)()
 
             print('#\n# Succeeded! ')

@@ -1,0 +1,62 @@
+#bin/bash
+
+if [ $# == 0 ]; then
+    echo "Usage: ./count <DIR_OF_CRACE> \neg: ./count ../crace-2.11"
+    exit 1
+fi
+
+DIR_crace=$*
+CONFIG_FILE="race_log/config.log"
+EXP_FILE="race_log/exps_fin.log"
+TRAIN_FILE="crace.train"
+
+for folder in $DIR_crace ; do
+    i=0
+    n_sampled=0
+    n_used=0
+    n_ins=0
+    find $folder | grep "/p[0-9]" | grep "count.log" | sort -n | while read dir_line
+    do
+        PARA_PARENT_DIR=${dir_line%/*}
+        echo $PARA_PARENT_DIR
+        PARA_DIR=""
+        train_files=(`find -L $PARA_PARENT_DIR -type f -name "crace.train" | grep "exp-[0-9]" | sort -n`)
+        num_1=${#train_files[@]}
+        exp_files=(`ls $PARA_PARENT_DIR | grep "exp-[0-9]"`)
+        num_2=${#exp_files[@]}
+        if [ $num_1 == $num_2 ] ; then
+            find -L $PARA_PARENT_DIR -type f -name "crace.train" | grep "exp-[0-9]" | sort -n | while read dir_line
+            do
+                # get the dir of each config.log file
+                EXP_DIR=${dir_line%/*}
+                NEW_PARA_DIR=${EXP_DIR%/*}
+                if [ "$PARA_DIR" != "$NEW_PARA_DIR" ] ; then
+                    PARA_DIR=$NEW_PARA_DIR
+                    # echo "PARA_DIR: " $PARA_DIR           
+                    echo "\`--caculating..."
+                    echo -e "$(date "+%Y-%m-%d %H:%M:%S") \n" > "$PARA_DIR/count.log"
+                    COUNT=$( ls -l $PARA_DIR | grep "exp-[0-9]" | wc -l)
+                fi
+                let n_sampled=n_sampled+$( cat $EXP_DIR/$CONFIG_FILE | tail -n 1 | cut -d ',' -f1)
+                let n_used=n_used+$( cat $EXP_DIR/$EXP_FILE | cut -d ',' -f2 | cut -d ':' -f2 \
+                | sort -nr | uniq -c | sort -nr | wc -l )
+                let n_ins=n_ins+$( cat $EXP_DIR/$TRAIN_FILE | grep  "(" | grep -v "^|c|" \
+                | tail -n 1 | cut -d '|' -f3 | cut -d '(' -f2 | cut -d ')' -f1 )
+                let i=i+1
+                if [ $i == $COUNT ] ; then
+                    echo -e $PARA_DIR '\t' num_exp: $COUNT,'\n' \
+                        sum_sampled: $n_sampled,'\t' sum_used: $n_used,'\t' sum_ins: $n_ins '\n'\
+                        n_sampled: `expr $n_sampled / $COUNT`,'\t' n_used: `expr $n_used / $COUNT`,'\t' n_ins: `expr $n_ins / $COUNT` > "$PARA_DIR/count.log"
+                    i=0
+                    n_sampled=0
+                    n_used=0
+                    n_ins=0
+                fi 
+            done
+            echo "\`--finished!"
+        else
+            echo "\`-! Exps are not finished"
+        fi
+        echo ""
+    done
+done

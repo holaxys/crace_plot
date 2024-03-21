@@ -1,0 +1,81 @@
+#bin/bash
+
+if [ $# == 0 ]; then
+    echo "Usage: ./count <DIR_OF_CRACE> \neg: ./count ../crace-2.11"
+    exit 1
+fi
+
+DIR_crace=$*
+CONFIG_FILE="race_log/config.log"
+EXP_FILE="race_log/exps_fin.log"
+TRAIN_FILE="crace.train"
+
+echo -e "$(date "+%Y-%m-%d %H:%M:%S") \n" > "$DIR_crace/count_sum.log"
+
+for folder in $DIR_crace ; do
+    i=0
+    n_sampled=0
+    n_used=0
+    n_ins=0
+    avg_q=0
+    find $folder | grep "count.log" | sort -n | while read dir_line
+    do
+        PARA_PARENT_DIR=${dir_line%/*}
+        echo $PARA_PARENT_DIR
+        # if ! [ -s "$PARA_PARENT_DIR/count.log" ] ; then
+        if [ -f "$PARA_PARENT_DIR/count.log" ] ; then
+            PARA_DIR=""
+            train_files=(`find -L $PARA_PARENT_DIR -type f -name "crace.train" | grep "exp-[0-9]" | sort -n`)
+            num_1=${#train_files[@]}
+            exp_files=(`ls $PARA_PARENT_DIR | grep "exp-[0-9]"`)
+            num_2=${#exp_files[@]}
+            if [ $num_1 == $num_2 ] ; then
+                find -L $PARA_PARENT_DIR -type f -name "crace.train" | grep "exp-[0-9]" | sort -n | while read dir_line
+                do
+                    # get the dir of each config.log file
+                    EXP_DIR=${dir_line%/*}
+                    NEW_PARA_DIR=${EXP_DIR%/*}
+                    if [ "$PARA_DIR" != "$NEW_PARA_DIR" ] ; then
+                        PARA_DIR=$NEW_PARA_DIR
+                        # echo "PARA_DIR: " $PARA_DIR           
+                        echo "\`--caculating..."
+                        COUNT=$( ls -l $PARA_DIR | grep "exp-[0-9]" | wc -l)
+                        echo -e $PARA_DIR '\t' num_exp: $COUNT > "$PARA_DIR/count.log" '\n'
+                    fi
+                    c_sampled=$( cat $EXP_DIR/$CONFIG_FILE | tail -n 1 | cut -d ',' -f1 )
+                    c_used=$( cat $EXP_DIR/$EXP_FILE | cut -d ',' -f2 | cut -d ':' -f2 | sort -nr | uniq -c | sort -nr | wc -l )
+                    c_ins=$( cat $EXP_DIR/$TRAIN_FILE | grep  "(" | grep -v "^|c|" | tail -n 1 | cut -d '|' -f3 | cut -d '(' -f2 | cut -d ')' -f1 )
+                    c_q=$( cat $EXP_DIR/$TRAIN_FILE | grep "mean value: " | cut -d ':' -f3 )
+                    let i=i+1
+                    echo -e \
+                    \ exp-$i: quality: $c_q, num_config: $c_used, num_ins: $c_ins  >> "$PARA_DIR/count.log"
+                    avg_q=$( printf "%.5f" `echo "scale=5;$avg_q+$c_q" | bc` )
+                    let n_sampled=n_sampled+$c_sampled
+                    let n_used=n_used+$c_used
+                    let n_ins=n_ins+$c_ins
+                    if [ $i == $COUNT ] ; then
+                        echo -e '\n'\
+                        sum_sampled: $n_sampled,'\t' sum_used: $n_used,'\t' sum_ins: $n_ins '\n'\
+                        n_sampled: `expr $n_sampled / $COUNT`,'\t' n_used: `expr $n_used / $COUNT`,'\t' n_ins: `expr $n_ins / $COUNT`,'\t' \
+                        avg_quality: $( printf "%.5f" `echo "scale=5;$avg_q/$COUNT" | bc` ) '\n' >> "$PARA_DIR/count.log"
+                        if [ -f "$DIR_crace/count_sum.log" ]; then
+                            cat "$PARA_DIR/count.log" >> "$DIR_crace/count_sum.log"
+                        fi
+                        i=0
+                        n_sampled=0
+                        n_used=0
+                        n_ins=0
+                    fi 
+                done
+                echo "\`--finished!"
+            else
+                echo "\`-! Exps are not finished"
+            fi
+            echo ""
+        else
+            echo -e \`--already existing..'\n'
+            cat $PARA_PARENT_DIR/count.log >> "$DIR_crace/count_sum.log"
+            continue
+        fi
+    done
+done

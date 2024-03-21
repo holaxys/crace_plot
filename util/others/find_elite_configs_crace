@@ -78,25 +78,26 @@ function main(){
         # rm -rf $DIR_FILE/$ELITES_FILE
         # touch $DIR_FILE/$ELITES_FILE
         rm -rf $ELITES_FILE $ELITES_CONFIG
-        touch $ELITES_FILE $ELITES_CONFIG
+        touch $ELITES_FILE #$ELITES_CONFIG
 
         # get and save the index of elite configurations
-        grep "|" crace.train | grep -E '[0-9]+$' | awk '{print $NF}' | grep -o '^[0-9]\+' | sort -n | uniq > $DIR_FILE/$ELITES_FILE
+        # grep "|" crace.train | grep -E '[0-9]+$' | awk '{print $NF}' | cut -d ',' -f1 | grep -o '^[0-9]\+' | sort -n | uniq > $DIR_FILE/$ELITES_FILE
+        grep "|" crace.train | grep -E '[0-9]+$'  | awk '{print $NF}' | cut -d ',' -f1 | grep -o '[0-9]\+$' | sort -n | uniq > $DIR_FILE/$ELITES_FILE
         FINAL_BEST=$(grep "Final best configuration" crace.train | tr -d " " | cut -d ":" -f2 | tr -cd "[0-9]")
         echo "Final best configuration: $FINAL_BEST" >> $ELITES_FILE
 
-        printf "#   $DIR_FILE: $ELITES_FILE\n"        
+        printf "#   $DIR_FILE/$ELITES_FILE\n"
 
         # check config.log in folder race_log
-        cat $ELITES_FILE | while read line
-        do  
-            elite=$( echo $line | grep -E '^[0-9][0-9]*$' )
-            if [[ "$elite" =~ ^[0-9][0-9]*$ ]]; then	
-                search_elite_configs $elite $DIR_FILE
-            fi
-        done
-        len=`expr length "$DIR_FILE"`
-        printf "#   %${len}s  $ELITES_CONFIG\n" 
+        # cat $ELITES_FILE | while read line
+        # do  
+        #     elite=$( echo $line | grep -E '^[0-9][0-9]*$' )
+        #     if [[ "$elite" =~ ^[0-9][0-9]*$ ]]; then	
+        #         search_elite_configs $elite $DIR_FILE
+        #     fi
+        # done
+        # len=`expr length "$DIR_FILE"`
+        # printf "#   %${len}s  $ELITES_CONFIG\n" 
 
     done     
 }

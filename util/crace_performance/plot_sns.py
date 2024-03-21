@@ -292,10 +292,10 @@ def plot_final_elite_results(folders, rpd, repetitions=0, title="", output_filen
                           width=0.3, whis=0.8, showfliers=True, fliersize=1,
                           linewidth=1, palette='Set3')
 
-    fig.set_xlabel('\n'+title, size=8)
-    fig.set_ylabel('quality', size=8)
-    plt.xticks(rotation=90, size=8)
-    plt.yticks(rotation=0, size=8)
+    fig.set_xlabel('\n'+title, size=12)
+    fig.set_ylabel('quality', size=12)
+    plt.xticks(rotation=90, size=12)
+    plt.yticks(rotation=0, size=12)
     # if stest == 'True':
     #     order = ['irace']
     #     pairs = []
@@ -351,13 +351,8 @@ def plot_final_elite_results(folders, rpd, repetitions=0, title="", output_filen
             finally:
                 sys.stdout = original_stdout
 
-        # annotator.configure(test=None, loc='inside', 
-        #                     line_width=0.5, fontsize=8)
-        # annotator.set_pvalues(p_values)
-        # annotator.annotate()
-
     plot = fig.get_figure()
-    plot.savefig(directory + "/" + output_filename + '.png', bbox_inches='tight', dpi=200)
+    plot.savefig(directory + "/" + output_filename + '.png', bbox_inches='tight', dpi=500)
 
     print("# Plot is saved in folder: ", directory)
 

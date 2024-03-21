@@ -220,18 +220,19 @@ class ReadOptions:
             self.numRepetitions.value = len(exp_folders)
 
         if self.dataFrom.value is None:
-            if self.drawMethod.value in "(parallelcoord, parallelcat, piechart, \
-            scattermatrix, histplot, jointplot)":
-                self.dataFrom.value = "configuration"
-            if self.drawMethod.value == "boxplot" and "elites" in self.numConfigurations.value:
-                self.dataFrom.value = "process"
-            if self.drawMethod.value in "(boxplot, violinplot)":
-                self.dataFrom.value = "quality"
-        elif self.dataFrom.value == "process":
+            # if self.drawMethod.value in "(parallelcoord, parallelcat, piechart, \
+            # scattermatrix, histplot, jointplot)":
+            #     self.dataFrom.value = "parameters"
+            # if self.drawMethod.value == "boxplot" and "elites" in self.numConfigurations.value:
+            #     self.dataFrom.value = "configurations"
+            # if self.drawMethod.value in "(boxplot, violinplot)":
+            #     self.dataFrom.value = "quality"
+            raise ParameterValueError("!   The 'dataFrom' must be provided!")
+        elif self.dataFrom.value == "configurations":
             self.drawMethod.value = "boxplot"
-            print("!   When analysing the process, only 'boxplot' can be chosen.")
+            print("!   When analysing the configurations of the whole procedure, only 'boxplot' can be chosen.")
 
-        if self.dataFrom.value != "process" and self.configType.value is None:
+        if self.dataFrom.value != "configurations" and self.configType.value is None:
             self.configType.value = "training"
 
         if self.drawMethod.value is not None and self.execDir.value is None:
@@ -245,13 +246,17 @@ class ReadOptions:
             path_name2 = os.path.basename(os.path.dirname(self.execDir.value))
             self.title.value = self.drawMethod.value+': '+path_name2+'/'+path_name1
             
-        if self.drawMethod.value not in "(parallelcoord, parallelcat, piechart, \
-            scattermatrix, histplot, jointplot)" and self.multiParameters.value is not None:
+        if self.drawMethod.value not in "(parallelcoord, piechart, \
+            scattermatrix, histplot, jointplot, boxplot, heatmap)" and self.multiParameters.value is not None:
             raise ParameterValueError("!   Parameter 'multiParameters'(-m) should not be provided here!")
       
         if self.drawMethod.value in "(jointplot, parallelcat)":
             if self.multiParameters.value is None or len(self.multiParameters.value.split(',')) != 2:
                 raise ParameterValueError("!   When '{}' is called, two parameter names must be provided!".format(self.drawMethod.value))
+
+        if self.drawMethod.value in "(heatmap)":
+            if self.multiParameters.value is None or len(self.multiParameters.value.split(',')) > 2:
+                raise ParameterValueError("!   When '{}' is called, one or two parameter names must be provided!".format(self.drawMethod.value))
 
         self.fileName.value = os.path.join(self.outDir.value, self.fileName.value)
 
@@ -260,7 +265,7 @@ class ReadOptions:
         
         if self.numConfigurations.value == 'allelites':
             if not os.path.exists(os.path.join(self.execDir.value, "elites.log")):
-                raise ParameterValueError("!   There is no 'elites.log' in exeDir.")
+                raise ParameterValueError("!   There is no 'elites.log' in exeDir. Use util/others/find_elite_configs_crace to generate this file.")
 
         if self.numConfigurations.value != 'else':
             self.elseNumConfigs.value = 'null'

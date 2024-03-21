@@ -1,0 +1,241 @@
+#!/bin/bash
+
+# =============================================================================================
+
+# 	Version:	1.0
+# 	File:		find_slice
+# 	Author:		Yunshuang XIAO
+# 	Purpose:	Obtain the information of slice from exsisting irace experiments
+	
+# 	INPUT:		DIR_EXP:	the folder of experiment you want to analysis
+# 	OUTPUT:		No direct optput on the screen, but
+# 				1st file "slice.log" for indexes of current configurations when update the model
+
+#   Tips:       1. experiments must have the standard output and exps_fin.log
+
+# =============================================================================================
+
+error() {
+    echo "! `TZ=UTC date`: $0: error: $@" >&2
+    exit 1
+}
+
+# usage
+if [ $# == 0 ]; then
+    echo " Usage: ./find_slice <DIR_OF_EXP> \n eg: ./find_slice .../crace-2.11/acotsp/numC/irace "
+    exit 1
+fi
+
+DIR_EXP=$1
+
+# exsiting file
+
+# file will be created
+SLICE_LOG="race_log/slice.log"
+EXPS_FIN="race_log/exps_fin.log"
+
+function search_slice_configs(){
+
+	# ----------------------------------------------------------------------------------------
+	#   FUNCTION:	search_slice_configs
+    #   INPUT:	    slice_length: the length of each slice
+    #               slice_base:   the type of budget (time or exp)
+    #               n_slice:      the number of slices
+    #               DIR_FILE:     address of the crace results
+	#   OUTPUT:	    none
+	# ----------------------------------------------------------------------------------------
+
+    slice_length=$1
+    slice_base=$2
+    n_slice=$3
+    dir=$4
+    cd $dir
+
+    tmp_file="tmp_results"
+    create_results='create_time'
+
+    jq -r '.creation_time | @csv' "race_log/exps_fin.log" | cut -d ',' -f1-6 | sort -t, -k1,1n -k2,2n -k3,3n -k4,4n -k5,5n -k6,6n  | uniq > $create_results
+    # jq -r '.creation_time | @csv' "race_log/exps_fin.log" | sort -t, -k1,1n -k2,2n -k3,3n -k4,4n -k5,5n -k6,6n  | uniq > $create_results
+
+    # check termination criteria
+    # use maxExperiment
+    last_config=0
+    if [ $slice_base == "Exp" ] ; then
+        for ((i=1; i<=$n_slice; i++)); do
+            line_i=$(( slice_length * i ))
+            line=$( cat "race_log/exps_fin.log" | head -n $line_i | tail -n 1 )
+            endtime=$( echo $line | rev | cut -d ":" -f1 | cut -d "}" -f2 | rev | cut -d '.' -f1)
+            min_diff=9999999999
+            closest_time=""
+            while read line; do
+                IFS=',' read -r year month day hour min sec <<< "$line"
+                line_format="$year-$month-$day $hour:$min:$sec"
+                line_sec=$(date -d "$line_format" +%s)
+                diff=$(($endtime - $line_sec))
+                if [ $diff -lt 0 ]; then
+                    diff=$((-$diff))
+                fi
+                if [ $diff -lt $min_diff ]; then
+                    min_diff=$diff
+                    closest_time=$line
+                else
+                    break
+                fi
+            done < <(cat "$create_results")
+            IFS=',' read -r year month day hour min sec <<< "$closest_time"
+            year=$((10#$year))
+            month=$((10#$month))
+            day=$((10#$day))
+            hour=$((10#$hour))
+            min=$((10#$min))
+            sec=$((10#$sec))
+            create_time=$(echo "[$year, $month, $day, $hour, $min, $sec")
+            config_id=$(cat "race_log/exps_fin.log" | grep -F "$create_time" | cut -d ',' -f2 | cut -d ":" -f2 | tr -d ' ' | sort -n | uniq | tail -n 1)
+            # while [[ ! "$config_id" =~ ^[-+0-9.e]+$ ]]
+            # do
+            #     create_time=$(echo "[$year, $month, $day, $hour, $min")
+            #     config_id=$(cat "race_log/exps_fin.log" | grep -F "$create_time" | cut -d ',' -f2 | cut -d ":" -f2 | tr -d ' ' | sort -n | uniq | tail -n 1)
+            #     if [[ $min -lt 0 ]] ; then
+            #         let min=60
+            #         let hour=hour-1
+            #     else
+            #         let min=min-1
+            #     fi
+            # done
+            # if [[ "$config_id" =~ ^[-+0-9.e]+$ && ! "$last_config" == "$config_id" ]] ; then
+            if [[ "$config_id" =~ ^[-+0-9.e]+$ ]] ; then
+                echo "# Model update $i, current fonfig id $config_id" >> $SLICE_LOG
+                last_config=$config_id
+            fi
+        done
+        rm $create_results
+    else
+    # use maxTime
+        results=$( jq -r '(.time | tostring) + ", " + (.end_time | @json)' "race_log/exps_fin.log" )
+        echo "$results" > $tmp_file
+        lines=$(awk -v slice="$slice_length" -v n_slice="$n_slice" '{
+            sum += $1
+            target = slice * (int(sum / slice) + (sum % slice != 0))
+            if (target / slice <= n_slice && prev != target) {
+                print $2
+                prev = target
+            }
+        }' $tmp_file)
+        # echo "$lines"
+        i=0
+        for endtime in $lines; do
+            let i+=1
+            read year month day hour min sec <<< $(date -d "@$endtime" +'%Y %m %d %H %M %S')
+            year=$((10#$year))
+            month=$((10#$month))
+            day=$((10#$day))
+            hour=$((10#$hour))
+            min=$((10#$min))
+            sec=$((10#$sec))
+            create_time=$(echo "[$year, $month, $day, $hour, $min, $sec")
+            config_id=$(cat "race_log/exps_fin.log" | grep -F "$create_time" | cut -d ',' -f2 | cut -d ":" -f2 | tr -d ' ' | sort -n | uniq | tail -n 1)
+            while [[ ! "$config_id" =~ ^[-+0-9.e]+$ ]]
+            do
+                create_time=$(echo "[$year, $month, $day, $hour, $min")
+                config_id=$(cat "race_log/exps_fin.log" | grep -F "$create_time" | cut -d ',' -f2 | cut -d ":" -f2 | tr -d ' ' | sort -n | uniq | tail -n 1)
+                if [[ $min -lt 0 ]] ; then
+                    let min=60
+                    let hour=hour-1
+                else
+                    let min=min-1
+                fi
+            done
+            if [[ "$config_id" =~ ^[-+0-9.e]+$ ]] ; then
+                echo "# Model update $i, current fonfig id $config_id" >> $SLICE_LOG
+            fi
+        done
+        rm $tmp_file
+    fi
+
+    # read the index of configurations
+    # cat $CONFIG_FILE | while read line
+    # do
+    #     INDEX=$( echo $line | cut -d '{' -f1 | cut -d ',' -f1 )
+    #     if [ $elite_num == $INDEX ]; then
+    #        echo "$line" >> $ELITES_CONFIG 
+    #     fi
+    # done
+}
+
+function main(){
+
+	# ----------------------------------------------------------------------------------------
+	#   FUNCTION:	main function of find_elite_configs, call function search_elite_configs 
+	# 				to find out the correspoding configuration for elite index
+	#   INPUT: 		none
+	#   OUTPUT:		none
+	# ----------------------------------------------------------------------------------------
+
+    find -L $DIR_EXP -type f | grep "crace.train" | while read file_line
+    do
+        # get the dir of each irace.train file
+        DIR_FILE=${file_line%/*}
+        # echo $DIR_FILE
+        cd $DIR_FILE
+        # if [[ -s "${SLICE_LOG}" ]] ; then
+        #     error "${SLICE_LOG}: Already existing"
+        # fi
+        rm -rf $SLICE_LOG
+        touch $SLICE_LOG
+        
+        # get budget
+        maxExp=$(cat crace.train | grep "#   maxExperiments:" | tr -d " " | cut -d ":" -f2)
+        maxTime=$(cat crace.train | grep "#   maxTime:" | tr -d " " | cut -d ":" -f2)
+        n_slice=$(cat crace.train | grep "#   modelUpdateByStep:" | tr -d " " | cut -d ":" -f2)
+
+        # get real used budget
+        used_exp=$(cat crace.train | grep "|" | tail -n 50 | tr -d " " | grep -v "||" | tail -n 1 | cut -d "|" -f7)
+        used_time=$(cat crace.train | grep "|" | tail -n 50 | tr -d " " | grep -v "||" | tail -n 1 | cut -d "|" -f9)
+
+        let diff_exp=maxExp-used_exp
+        let diff_time=maxTime-used_time
+        diff_exp=$(( diff_exp >= 0 ? diff_exp : -diff_exp ))
+        diff_time=$(( diff_time >= 0 ? diff_time : -diff_time ))
+
+        if [ $diff_exp -lt $diff_time ] ; then
+            total_budget=$maxExp
+            slice_base=$( echo "Exp")
+            slice_length=$(expr $total_budget / $n_slice - 1)
+        else
+            total_budget=$maxTime
+            slice_base=$( echo "Time")
+            slice_length=$(expr $total_budget / $n_slice)
+        fi
+
+        search_slice_configs $slice_length $slice_base $n_slice $DIR_FILE
+        printf "#      $DIR_FILE/$SLICE_LOG\n"
+
+    done     
+}
+
+# call the main function
+echo "---------------------------------------------------------------------------------------------------------"
+echo "# parameters: $#"
+echo "# find_slice is running..."
+para_i=1
+for para in $*
+do
+    echo "#   $para_i: $para"
+    let para_i=$para_i+1
+done
+echo "# find_slice is running..."
+para_i=1
+for para in $*
+do
+    echo "#   $para_i: $para"
+    let para_i=$para_i+1
+    echo "#     files are saved:"
+    main
+    status=$?
+done
+if [ $status == 0 ] ; then
+	echo "# find_slice is succeed "
+else
+	echo "# failed"
+fi
+echo "---------------------------------------------------------------------------------------------------------"
