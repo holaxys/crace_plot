@@ -30,6 +30,8 @@ class Configurations:
         self.title = options.title.value
         self.file_name = options.fileName.value
 
+        self.save_name = os.path.join(self.out_dir, self.file_name)
+
         self.dpi = options.dpi.value
         self.showfliers = options.showfliers.value
 
@@ -44,7 +46,7 @@ class Configurations:
         elif options.numConfigurations.value == "else":
             self.num_config = options.elseNumConfigs.value
 
-        self.config_type = options.configType.value
+        self.results_from = options.resultsFrom.value
 
         self.draw_method = options.drawMethod.value = "boxplot"
 
@@ -87,35 +89,71 @@ class Configurations:
             results_count[int(id)] = None
             results_count[int(id)] = item['instance_id']
 
-        key_name = "-%(num)s-" % {"num": best_id}
-        elite_ids[elite_ids.index(int(best_id))] = key_name
-        print("#   ", elite_ids)
+        # mean based on Nins
+        # results_mean = {}
+        # min_quality = float("inf")
+        # max_count = 0
+        # best_id = 0
+        # for id, item in results1.items():
+        #     results_mean[int(id)] = None
+        #     results_mean[int(id)] = item['quality']
+        #     if item['quality'] <= min_quality and results_count[int(id)] >= max_count:
+        #             max_count = results_count[int(id)]
+        #             min_quality = item['quality']
+        #             best_id = id
+
+        final_best = [x for x in elite_ids if isinstance(x, str)][0]
+        
+        # Sort elite_ids based on results_count values
+        #   1. num of instances, increase
+        #   2. mean quality, decrease
+        results_count_sorted = {k:v for k, v in sorted(results_count.items(), key=lambda x: (x[1], -results_mean[x[0]]), reverse=False)}
+        elite_ids_sorted = [str(x) for x in results_count_sorted.keys()]
+
+        elite_labels = []
+        key_name = "-%(num)s-" % {"num": int(best_id)}
+        for x in elite_ids_sorted:
+            if int(x) == int(best_id):
+                x = key_name
+            elif int(x) == int(re.search(r'\d+', final_best).group()):
+                x = final_best
+                if int(re.search(r'\d+', x).group()) == int(best_id):
+                    x = "-%(num)s-" % {"num": x}
+            elite_labels.append(x)
+
+        print("#   ", elite_labels)
 
         # draw the plot
         fig, axis = plt.subplots()  # pylint: disable=undefined-variable
         if self.showfliers == True:
-            fig = sns.boxplot(x='config_id', y='quality', data=elite_results, width=0.5, \
-                              showfliers=True, fliersize=2,\
+            fig = sns.boxplot(x='config_id', y='quality', data=elite_results, \
+                              order=elite_ids_sorted, \
+                              width=0.5, showfliers=True, fliersize=2,\
                               linewidth=0.5, palette="Set3")
         else:
-            fig = sns.boxplot(x='config_id', y='quality', data=elite_results, width=0.5, \
-                              showfliers=False,\
+            fig = sns.boxplot(x='config_id', y='quality', data=elite_results, \
+                              order=elite_ids_sorted, \
+                              width=0.5, showfliers=False,\
                               linewidth=0.5, palette="Set3")
-        fig.set_xticklabels(elite_ids, rotation=0)
-        fig.set_xlabel(exp_names)
+        fig.set_xticklabels(elite_labels, rotation=0)
+        if self.title:
+            fig.set_xlabel(self.title)
+        else:
+            fig.set_xlabel(exp_names)
 
         results_count = dict(sorted(results_count.items(), key=lambda x:x[0]))
 
-        if self.config_type is None:
+        if self.results_from is None:
             # add instance numbers
             results3 = elite_results.max().T.to_dict()
             max_v = results3['quality'] * 1.0005
             plt.text(x=-0.7,y=max_v,s="ins_num",ha='right',size=10,color='blue')
             i=0
-            for x in results_count.keys():
-                plt.text(x=i, y=max_v,s=results_count[x],ha='center',size=10,color='blue')
+            for x in results_count_sorted.values():
+                plt.text(x=i, y=max_v,s=x,ha='center',size=10,color='blue')
                 i+=1
         plt.show()
 
         plot = fig.get_figure()
-        plot.savefig(self.file_name, dpi=self.dpi)
+        plot.savefig(self.save_name, dpi=self.dpi)
+        print("#\n# {} has been saved.".format(self.file_name))

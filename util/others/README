@@ -29,6 +29,5 @@
 #      and storage the information in the format used in crace results ("elites.log").
 #   2. use ./find_elite_configs_irace /path/to/irace
 #      to find out all elite configurations appear in the irace procedure. 
-#      The related configurations are storaged in the similar format used in scenario/default.txt
-#   3. ??
+#   3. new R2CSV.r can find all elites, no need to use ./find_elite_configs_irace
 

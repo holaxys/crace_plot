@@ -12,7 +12,7 @@ asyncio_file="race_log/asyncio_log.log"
 
 echo "\`-reading..."
 for folder in $DIR_race; do
-    echo -e "$(date "+%Y-%m-%d %H:%M:%S") Time consuming:  \n" > $folder/$TIME_LOG
+    echo -e "$(date "+%Y-%m-%d %H:%M:%S") Time consuming:  \n" > "$folder/$TIME_LOG"
     find $folder -type f -name "crace.train" | sort -n | while read line
     do
         EXP_DIR=${line%/*}
@@ -33,7 +33,7 @@ for folder in $DIR_race; do
         echo -e $RELATIVE_EXP_DIR: '\n' \
         \ Budget: $budget, '\t'boundMax: $boundMax '\n' \
         \ Start time: $time1, '\t'Stop time: $time2 '\n' \
-        \ Time difference: $diffHr Hour\(s\) '\n' >> $folder/$TIME_LOG
+        \ Time difference: $diffHr Hour\(s\) '\n' >> "$folder/$TIME_LOG"
     done
     echo "|-- $folder/$TIME_LOG is saved."
 done

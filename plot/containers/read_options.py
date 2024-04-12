@@ -219,21 +219,21 @@ class ReadOptions:
         if len(exp_folders) != self.numRepetitions.value:
             self.numRepetitions.value = len(exp_folders)
 
-        if self.dataFrom.value is None:
+        if self.dataType.value is None:
             # if self.drawMethod.value in "(parallelcoord, parallelcat, piechart, \
-            # scattermatrix, histplot, jointplot)":
-            #     self.dataFrom.value = "parameters"
+            # pairplot, histplot, jointplot)":
+            #     self.dataType.value = "parameters"
             # if self.drawMethod.value == "boxplot" and "elites" in self.numConfigurations.value:
-            #     self.dataFrom.value = "configurations"
+            #     self.dataType.value = "configurations"
             # if self.drawMethod.value in "(boxplot, violinplot)":
-            #     self.dataFrom.value = "quality"
-            raise ParameterValueError("!   The 'dataFrom' must be provided!")
-        elif self.dataFrom.value == "configurations":
+            #     self.dataType.value = "quality"
+            raise ParameterValueError("!   The 'dataType' must be provided!")
+        elif self.dataType.value == "configurations":
             self.drawMethod.value = "boxplot"
             print("!   When analysing the configurations of the whole procedure, only 'boxplot' can be chosen.")
 
-        if self.dataFrom.value != "configurations" and self.configType.value is None:
-            self.configType.value = "training"
+        if self.dataType.value != "configurations" and self.resultsFrom.value is None:
+            self.resultsFrom.value = "training"
 
         if self.drawMethod.value is not None and self.execDir.value is None:
             raise ParameterValueError("!   The 'execDir' must be provided when 'drawMethod' is not None!")
@@ -245,9 +245,13 @@ class ReadOptions:
             path_name1 = os.path.basename(self.execDir.value)
             path_name2 = os.path.basename(os.path.dirname(self.execDir.value))
             self.title.value = self.drawMethod.value+': '+path_name2+'/'+path_name1
-            
+
+        if self.drawMethod.value in "(pairplot)" and (self.keyParameter.value is None
+            or len(self.keyParameter.value.split(',')) > 1):
+            raise ParameterValueError("!   Parameter 'keyParameter'(-k) must be provided here!")
+
         if self.drawMethod.value not in "(parallelcoord, piechart, \
-            scattermatrix, histplot, jointplot, boxplot, heatmap)" and self.multiParameters.value is not None:
+            pairplot, histplot, jointplot, boxplot, heatmap)" and self.multiParameters.value is not None:
             raise ParameterValueError("!   Parameter 'multiParameters'(-m) should not be provided here!")
       
         if self.drawMethod.value in "(jointplot, parallelcat)":
@@ -258,9 +262,17 @@ class ReadOptions:
             if self.multiParameters.value is None or len(self.multiParameters.value.split(',')) > 2:
                 raise ParameterValueError("!   When '{}' is called, one or two parameter names must be provided!".format(self.drawMethod.value))
 
-        self.fileName.value = os.path.join(self.outDir.value, self.fileName.value)
+        if self.statisticalTest.value in (True, "True", "ture") and self.drawMethod.value not in "(boxplot, violinplot)":
+            raise ParameterValueError("!   When '{}' is enable, drawMethod must be in (boxplot, violinplot)!".format(self.statisticalTest.value))
 
-        if self.configType.value == 'test' and self.numConfigurations.value == 'all':
+        if (self.slice.value is True and self.drawMethod.value in "(histplot)"
+            and self.multiParameters.value is None):
+            raise ParameterValueError("!   Parameter 'multiParameters'(-m) must be provided here!")
+
+        if not self.slice.is_set() and self.drawMethod.value in "(boxplot, heatmap)":
+            self.set_option(self.slice, True)
+
+        if self.resultsFrom.value == 'test' and self.numConfigurations.value == 'all':
             raise ParameterValueError("!   There is no 'allConfigurations' in test part!")
         
         if self.numConfigurations.value == 'allelites':

@@ -208,7 +208,7 @@ def plot_performance_variance(folders, repetitions=0, title="", output_filename=
             race_results = load_race_results(folder, repetitions)
             fig, axis = plt.subplots()  # pylint: disable=undefined-variable
             axis.boxplot(race_results.values())
-            axis.set_xticklabels(race_results.keys(), rotation=90)
+            axis.set_xticklabels(race_results.keys(), rotation=0)
             axis.set_title(title)
             plt.show()  # pylint: disable=undefined-variable
             # print(os.path.dirname(folders[0]))
@@ -281,21 +281,21 @@ def plot_final_elite_results(folders, rpd, repetitions=0, title="", output_filen
     if rpd is not None:
         all_results = compute_rpd(all_results, rpd)
 
-    sns.set(rc={'figure.figsize':(11.7,8.27)})
+    # sns.set_theme(rc={'figure.figsize':(11.7,8.27)})
+    sns.set_theme(rc={'figure.figsize':(11.7,8.27)}, font_scale=1.8)
+
     fig, axis = plt.subplots()  # pylint: disable=undefined-variable
     if show in ("False", "false"):
         fig = sns.boxplot(x='folder', y='quality', data=all_results, 
-                          width=0.3, whis=0.8, showfliers=False,
-                          linewidth=1, palette='Set3')
+                          whis=0.8, showfliers=False,
+                        #   width=0.3, linewidth=1, palette='Set2')
+                          width=0.6, linewidth=2, palette='Set2')
     else:
         fig = sns.boxplot(x='folder', y='quality', data=all_results, 
-                          width=0.3, whis=0.8, showfliers=True, fliersize=1,
-                          linewidth=1, palette='Set3')
+                          whis=0.8, showfliers=True, fliersize=1,
+                        #   width=0.3, linewidth=1, palette='Set2')
+                          width=0.6, linewidth=2, palette='Set2')
 
-    fig.set_xlabel('\n'+title, size=12)
-    fig.set_ylabel('quality', size=12)
-    plt.xticks(rotation=90, size=12)
-    plt.yticks(rotation=0, size=12)
     # if stest == 'True':
     #     order = ['irace']
     #     pairs = []
@@ -339,7 +339,8 @@ def plot_final_elite_results(folders, rpd, repetitions=0, title="", output_filen
         annotator = Annotator(fig, pairs=pairs, order=order,
                             data=all_results, x='folder', y='quality')
         annotator.configure(test='Wilcoxon', text_format='star', comparisons_correction='fdr_bh',
-                            line_width=0.5, fontsize=8)
+                            # line_width=0.5, fontsize=8)
+                            line_width=1, fontsize=12)
         # annotator.apply_and_annotate()
 
         with open(directory + "/" + plog + '.log', 'a') as f1:
@@ -350,6 +351,16 @@ def plot_final_elite_results(folders, rpd, repetitions=0, title="", output_filen
                 annotator.apply_and_annotate()
             finally:
                 sys.stdout = original_stdout
+
+    # fig.set_xlabel('\n'+title, size=12)
+    # fig.set_ylabel('quality', size=12)
+    # plt.xticks(rotation=0, size=12)
+    # plt.yticks(rotation=0, size=12)
+
+    fig.set_xlabel('\n'+title, size=20)
+    fig.set_ylabel('quality', size=20)
+    plt.xticks(rotation=0, size=20)
+    plt.yticks(rotation=0, size=20)
 
     plot = fig.get_figure()
     plot.savefig(directory + "/" + output_filename + '.png', bbox_inches='tight', dpi=500)
@@ -364,8 +375,8 @@ def parse_arguments():
     parser.add_argument('--title', '-t', default="", help="The title of the plot.")
     parser.add_argument('--repetitions', '-r', default=0, type=int, help="The number of repetitions of the experiment")
     parser.add_argument("--statistical-test", "-st", default=False, help="Do statistical test or not", dest="st")
-    parser.add_argument("folder", nargs='+', help="A list of folders to include, supports glob expansion")
-    parser.add_argument("--output", "-o", default="plot.png", help="The name of the output file(.png)")
+    parser.add_argument("--folder", "-e", nargs='+', help="A list of folders to include, supports glob expansion")
+    parser.add_argument("--output", "-o", default="plot", help="The name of the output file(.png)")
     parser.add_argument("--showfliers", "-s", default=True, help="show fliers or not")
     parser.add_argument("--relative-difference", "-rpd", nargs='?', type=int, default=None, const=math.inf, dest="rdp",
                         help="The best known quality. If only the flag -rpd is set, "
@@ -378,8 +389,13 @@ def execute_from_args():
     Parse the command line arguments and plot according to them.
     """
     args = parse_arguments()
+    print("# Provided parameters: ")
+    for k,v in vars(args).items():
+        if v:
+            print(f"#  {k}: {v}")
     check_for_dependencies()
     folders = expand_folder_arg(args.folder)
+
     plot_final_elite_results(folders, args.rdp, args.repetitions, args.title, 
                              args.output, args.showfliers, args.st)
 

@@ -76,16 +76,16 @@
         "short": "-d",
         "long": "--draw-method",
         "default": "",
-        "domain": "(boxplot, violinplot, parallelcoord, parallelcat, piechart, scattermatrix, histplot, jointplot, heatmap)",
+        "domain": "(boxplot, violinplot, parallelcoord, parallelcat, piechart, pairplot, histplot, jointplot, heatmap)",
         "section": "Draw plot",
         "description": "The method chose to draw a plot for the Crace results.",
         "vignettes": "The funtion chose to analyse the \\Crace results. If this option is not null, \\execDir must to be provided.\n When one method is chosen, the correspoding option must be True.\n "
     },
     {
-        "name": "dataFrom",
+        "name": "dataType",
         "type": "s",
-        "short": "-df",
-        "long": "--data-from",
+        "short": "-dt",
+        "long": "--data-type",
         "default": "",
         "domain": "(quality, parameters, configurations)",
         "section": "Draw plot",
@@ -115,14 +115,24 @@
         "vignettes": "Additional parameter for the number of configurations when 'else' is chosed for \\parameter{numConfigurations}."
     },
     {
-        "name": "configType",
+        "name": "slice",
+        "type": "b",
+        "short": "-sl",
+        "long": "--slice",
+        "default": 0,
+        "section": "Draw plot",
+        "description": "Use slice or not when read all configurations.",
+        "vignettes": "Use slice or not when read all configurations. It's True when use boxplot and heatmap when reading all configurations."
+    },
+    {
+        "name": "resultsFrom",
         "type": "s",
-        "short": "-c",
-        "long": "--config-type",
+        "short": "-rf",
+        "long": "--results-from",
         "default": "",
         "domain": "(test, training)",
         "section": "Draw plot",
-        "description": "The type of configurations from provided Crace results.",
+        "description": "The type of results from provided Crace, training or testing.",
         "vignettes": "The type of configurations from provided Crace results. \n\\begin{itemize}\n\\item[] \\code{test} select configurations in the test part.\n\\item[] \\code{training} select configurations in the training part.\n\\end{itemize}"
 
     },
@@ -133,7 +143,7 @@
         "long": "--key-parameter",
         "default": "",
         "section": "Draw plot",
-        "description": "The parameter chosed to be the key in the plot.",
+        "description": "The parameter chosed to be the key when drawing parallelcoord, pairplot.",
         "vignettes": "The parameter chosed to be the key one shown in the plot. For example: if one parameter is provided as the key for the parallelplot, the plot will be grouped by this parameter."
     },
     {
@@ -166,5 +176,15 @@
         "section": "Draw plot",
         "description": "The parameter showfliers used for saving plot.",
         "vignettes": "Enable\/disable showfliers when drawing the picture."
+    },
+    {
+        "name": "statisticalTest",
+        "type": "b",
+        "short": "-st",
+        "long": "--statistical-test",
+        "default": 0,
+        "section": "Draw plot",
+        "description": "Add p-values for plots or not.",
+        "vignettes": "Enable\/disable add p-values when drawing the plot."
     }
 ]

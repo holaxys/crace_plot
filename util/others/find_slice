@@ -26,7 +26,7 @@ if [ $# == 0 ]; then
     exit 1
 fi
 
-DIR_EXP=$1
+DIR_EXP=$*
 
 # exsiting file
 
@@ -108,17 +108,15 @@ function search_slice_configs(){
                 last_config=$config_id
             fi
         done
-        rm $create_results
     else
     # use maxTime
-        results=$( jq -r '(.time | tostring) + ", " + (.end_time | @json)' "race_log/exps_fin.log" )
+        results=$( jq -r '(.time | tostring) + ", " + (.start_time | @json)' "race_log/exps_fin.log" )
         echo "$results" > $tmp_file
-        lines=$(awk -v slice="$slice_length" -v n_slice="$n_slice" '{
+        lines=$(awk -v slice="$slice_length" -v i_slice=0 '{
             sum += $1
-            target = slice * (int(sum / slice) + (sum % slice != 0))
-            if (target / slice <= n_slice && prev != target) {
+            if (sum / slice >= i_slice + 1) {
                 print $2
-                prev = target
+                i_slice += 1
             }
         }' $tmp_file)
         # echo "$lines"
@@ -149,8 +147,9 @@ function search_slice_configs(){
                 echo "# Model update $i, current fonfig id $config_id" >> $SLICE_LOG
             fi
         done
-        rm $tmp_file
+        # rm $tmp_file
     fi
+    rm ${create_results}
 
     # read the index of configurations
     # cat $CONFIG_FILE | while read line
@@ -171,6 +170,7 @@ function main(){
 	#   OUTPUT:		none
 	# ----------------------------------------------------------------------------------------
 
+    DIR_EXP=$1
     find -L $DIR_EXP -type f | grep "crace.train" | while read file_line
     do
         # get the dir of each irace.train file
@@ -200,7 +200,7 @@ function main(){
         if [ $diff_exp -lt $diff_time ] ; then
             total_budget=$maxExp
             slice_base=$( echo "Exp")
-            slice_length=$(expr $total_budget / $n_slice - 1)
+            slice_length=$(expr \( $total_budget / \( $n_slice + 1 \) \))
         else
             total_budget=$maxTime
             slice_base=$( echo "Time")
@@ -230,7 +230,7 @@ do
     echo "#   $para_i: $para"
     let para_i=$para_i+1
     echo "#     files are saved:"
-    main
+    main $para
     status=$?
 done
 if [ $status == 0 ] ; then

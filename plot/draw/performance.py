@@ -1,7 +1,11 @@
 import os
 import re
+import sys
+
 import matplotlib.pyplot as plt
 import seaborn as sns
+import scikit_posthocs as sp
+from statannotations.Annotator import Annotator
 
 from plot.containers.read_options import ReadOptions
 from plot.draw.data import ReadResults
@@ -27,8 +31,11 @@ class Performance:
         self.title = options.title.value
         self.file_name = options.fileName.value
 
+        self.save_name = os.path.join(self.out_dir, self.file_name)
+
         self.dpi = options.dpi.value
         self.showfliers = options.showfliers.value
+        self.stest = options.statisticalTest.value
 
         if options.numConfigurations.value == "elites":
             self.num_config = 5
@@ -101,10 +108,10 @@ class Performance:
                         data_exp = data.loc[data['exp_name']==exp_names[n]]
                         if self.showfliers == True:
                             fig = sns.boxplot(
-                                x='config_id', y='quality', data=data_exp, width=0.5, fliersize=1, linewidth=0.5, palette="Purples", ax=axis[i,j])
+                                x='config_id', y='quality', data=data_exp, width=0.5, fliersize=1, linewidth=0.5, palette="Set2", ax=axis[i,j])
                         else:
                             fig = sns.boxplot(
-                                x='config_id', y='quality', data=data_exp, width=0.5, showfliers=False, linewidth=0.5, palette="Purples", ax=axis[i,j])
+                                x='config_id', y='quality', data=data_exp, width=0.5, showfliers=False, linewidth=0.5, palette="Set2", ax=axis[i,j])
                         print(elite_ids[exp_names[n]])
                         fig.set_xticklabels(elite_ids[exp_names[n]], rotation=0, fontsize=10)
                         fig.set_xlabel(exp_names[n])
@@ -116,10 +123,10 @@ class Performance:
                     data_exp = data.loc[data['exp_name']==exp_names[n]]
                     if self.showfliers == True:
                         fig = sns.boxplot(
-                            x='config_id', y='quality', data=data_exp, width=0.5, fliersize=1, linewidth=0.5, palette="Purples", ax=axis[i])
+                            x='config_id', y='quality', data=data_exp, width=0.5, fliersize=1, linewidth=0.5, palette="Set2", ax=axis[i])
                     else:
                         fig = sns.boxplot(
-                            x='config_id', y='quality', data=data_exp, width=0.5, showfliers=False, linewidth=0.5, palette="Purples", ax=axis[i])
+                            x='config_id', y='quality', data=data_exp, width=0.5, showfliers=False, linewidth=0.5, palette="Set2", ax=axis[i])
                     fig.set_xticklabels(elite_ids[exp_names[n]], rotation=0)
                     fig.set_xlabel(exp_names[n])
                     if i != 0:
@@ -127,9 +134,10 @@ class Performance:
                     n += 1 
             else:
                 if self.showfliers == True:
-                    fig = sns.boxplot(x='config_id', y='quality', data=data, width=0.5, fliersize=2, linewidth=0.5, palette="Purples") 
+                    fig = sns.boxplot(x='config_id', y='quality', data=data, width=0.5, fliersize=2, linewidth=0.5, palette="Set2") 
+
                 else:
-                    fig = sns.boxplot(x='config_id', y='quality', data=data, width=0.5, showfliers=False, linewidth=0.5, palette="Purples") 
+                    fig = sns.boxplot(x='config_id', y='quality', data=data, width=0.5, showfliers=False, linewidth=0.5, palette="Set2") 
                 fig.set_xticklabels(elite_ids[exp_names[0]], rotation=0)
                 fig.set_xlabel(exp_names[0])
 
@@ -139,14 +147,61 @@ class Performance:
             print("#   {}".format(ids))
 
             if self.showfliers == True:
-                fig = sns.boxplot(x='exp_name', y='quality', data=data, width=0.5, fliersize=2, linewidth=0.5,        palette="Purples")
+                fig = sns.boxplot(x='exp_name', y='quality', data=data, width=0.5, fliersize=2, linewidth=0.5, palette="Set2")
             else:
-                fig = sns.boxplot(x='exp_name', y='quality', data=data, width=0.5, showfliers=False, linewidth=0.5,        palette="Purples")
+                fig = sns.boxplot(x='exp_name', y='quality', data=data, width=0.5, showfliers=False, linewidth=0.5, palette="Set2")
 
             fig.set_xlabel('\n{}'.format(ids))
+
+        if self.stest in (True, "True", "ture"):
+            plog = self.file_name
+
+            # p_values
+            p1 = sp.posthoc_wilcoxon(data, val_col='quality', group_col='exp_name')
+            # p_values after multiple test correction
+            p2 = sp.posthoc_wilcoxon(data, val_col='quality', group_col='exp_name',
+                                    p_adjust='fdr_bh')
+            print("Original p_values caculated by 'Wilcoxon':\n", p1)
+            print("New p_values corrected by 'fdr_bh':\n", p2)
+
+            with open(self.out_dir + "/" + plog + '.log', 'w') as f1:
+                print("Original p_values caculated by 'Wilcoxon':\n", p1, file=f1)
+                print("\nNew p_values corrected by 'fdr_bh':\n", p2, file=f1)
+                print("\n", file=f1)
+
+            order = []
+            pairs = []
+            p_values = []
+            for x in data['exp_name'].unique():
+                order.append(x)
+            i = 0
+            for x in order[:-1]:
+                i += 1
+                for y in order[i:]:
+                    pairs.append((x,y))
+                    p_values.append(p2.loc[x, y])
+
+            annotator = Annotator(fig, pairs=pairs, order=order,
+                                data=data, x='exp_name', y='quality')
+            annotator.configure(test='Wilcoxon', text_format='star', comparisons_correction='fdr_bh',
+                                line_width=0.5, fontsize=8)
+                                # line_width=1, fontsize=12)
+            # annotator.apply_and_annotate()
+
+            with open(self.out_dir + "/" + plog + '.log', 'a') as f1:
+                original_stdout = sys.stdout
+                sys.stdout = f1
+
+                try:
+                    annotator.apply_and_annotate()
+                finally:
+                    sys.stdout = original_stdout
+
         
         plot = fig.get_figure()
-        plot.savefig(self.file_name, dpi=self.dpi)
+        plt.suptitle(self.title, size=15)
+        plot.savefig(self.save_name, dpi=self.dpi)
+        print("# {} has been saved.".format(self.file_name))
 
     def draw_violinplot(self, data, exp_names, elite_ids):
         """
@@ -184,7 +239,7 @@ class Performance:
                     for j in range(0, column):
                         data_exp = data.loc[data['exp_name']==exp_names[n]]
                         fig = sns.violinplot(
-                            x='config_id', y='quality', data=data_exp, inner="point", width=0.5, linewidth=0.5, palette="Purples", ax=axis[i,j])
+                            x='config_id', y='quality', data=data_exp, inner="point", width=0.5, linewidth=0.5, palette="Set2", ax=axis[i,j])
                         fig.set_xticklabels(elite_ids[exp_names[n]], rotation=0, fontsize=10)
                         fig.set_xlabel(exp_names[n])
                         if j != 0:
@@ -194,14 +249,14 @@ class Performance:
                 for i in range(0, column):
                     data_exp = data.loc[data['exp_name']==exp_names[n]]
                     fig = sns.violinplot(
-                        x='config_id', y='quality', data=data_exp, inner="point", width=0.5, linewidth=0.5, palette="Purples", ax=axis[i])
+                        x='config_id', y='quality', data=data_exp, inner="point", width=0.5, linewidth=0.5, palette="Set2", ax=axis[i])
                     fig.set_xticklabels(elite_ids[exp_names[n]], rotation=0)
                     fig.set_xlabel(exp_names[n])
                     if i != 0:
                         fig.set_ylabel('')
                     n += 1
             else:
-                fig = sns.violinplot(x='config_id', y='quality', data=data, inner="point", width=0.5, linewidth=0.5, palette="Purples")
+                fig = sns.violinplot(x='config_id', y='quality', data=data, inner="point", width=0.5, linewidth=0.5, palette="Set2")
                 fig = sns.swarmplot(x='config_id', y='quality', data=data, size=3) 
                 fig.set_xticklabels(elite_ids[exp_names[0]], rotation=0)
                 fig.set_xlabel(exp_names[0])
@@ -211,9 +266,12 @@ class Performance:
             ids = re.sub('}','',re.sub('{','',re.sub('\'','',str(elite_ids))))
             print("#   {}".format(ids))
 
-            fig = sns.violinplot(x='exp_name', y='quality', data=data, inner=None, width=0.5, linewidth=0.5, palette="Purples")
+            fig = sns.violinplot(x='exp_name', y='quality', data=data, inner=None, width=0.5, linewidth=0.5, palette="Set2")
             fig = sns.swarmplot(x='exp_name', y='quality', data=data, size=3, palette='pink')
             fig.set_xlabel('\n{}'.format(ids))
         
         plot = fig.get_figure()
-        plot.savefig(self.file_name, dpi=self.dpi)
+        plt.suptitle(self.title, size=15)
+        plot.savefig(self.save_name, dpi=self.dpi)
+        print("# {} has been saved.".format(self.file_name))
+

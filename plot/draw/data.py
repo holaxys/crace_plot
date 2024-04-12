@@ -16,7 +16,7 @@ class ReadResults:
         :param exec_dir: the directory stored Crace results
         """
         self.folders = folders
-        self.dataFrom = options.dataFrom.value
+        self.dataType = options.dataType.value
 
         self.elite_log = "race_log/elite.log"
         self.config_log = "race_log/config.log"
@@ -36,7 +36,7 @@ class ReadResults:
         elif options.numConfigurations.value == "else":
             self.num_config = options.elseNumConfigs.value
 
-        self.config_type = options.configType.value
+        self.results_from = options.resultsFrom.value
 
         # select exact way to load Crace results via :param{drawMethod}
         # e.g.: heatmap for config_data; boxplot for performance
@@ -48,7 +48,7 @@ class ReadResults:
         Tips: the quality of each experiments on different configurations
         """
 
-        self.exps_fin = "race_log/exps_fin.log" if self.config_type == "training" else "race_log/test/exps_fin.log"
+        self.exps_fin = "race_log/exps_fin.log" if self.results_from == "training" else "race_log/test/exps_fin.log"
 
         if self.num_config > 0:
             all_data, exp_names, elite_ids = self.elitist_quality() if self.num_config == 1 else self.elites_quality()
@@ -81,10 +81,10 @@ class ReadResults:
         Tips: the quality of each configuration
         """
 
-        if self.config_type == "training":
+        if self.results_from == "training":
             # all elite configurations run on the whole training instances 
             self.exps_fin = "race_log/test/exps_elites_train.log" 
-        elif self.config_type == "test":
+        elif self.results_from == "test":
             # all elite configurations run on the whole test instances
             self.exps_fin = "race_log/test/exps_elites_test.log" 
         else:
@@ -386,7 +386,8 @@ class ReadResults:
             with open(os.path.join(folder, self.slice_log)) as f1:
                 for line in f1:
                     # brief slice
-                    model_id = int(line.split(',')[0].split(' ')[-1])
+                    # model_id = int(line.split(',')[-2].split(' ')[-1])    # no restart
+                    model_id = int(line.split(',')[-2].split('/')[0].split(' ')[-1])    # with restart
                     slice_id = int(line.split(' ')[-1])
                     if (len(slice_ids[name]) < 1 and slice_id not in slice_ids[name] 
                         or slice_id != slice_ids[name][-1][1]):
