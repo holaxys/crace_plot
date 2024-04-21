@@ -290,11 +290,15 @@ def plot_final_elite_results(folders, rpd, repetitions=0, title="", output_filen
                           whis=0.8, showfliers=False,
                         #   width=0.3, linewidth=1, palette='Set2')
                           width=0.6, linewidth=2, palette='Set2')
+        fig = sns.stripplot(x='folder', y='quality', data=all_results,
+                            color='red', size=2, jitter=True)
     else:
         fig = sns.boxplot(x='folder', y='quality', data=all_results, 
                           whis=0.8, showfliers=True, fliersize=1,
                         #   width=0.3, linewidth=1, palette='Set2')
                           width=0.6, linewidth=2, palette='Set2')
+        fig = sns.stripplot(x='folder', y='quality', data=all_results,
+                            color='red', size=2, jitter=True)
 
     # if stest == 'True':
     #     order = ['irace']

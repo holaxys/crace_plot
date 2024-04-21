@@ -1,0 +1,61 @@
+#!/bin/bash
+
+error() {
+    echo "! `TZ=UTC date`: $0: error: $@" >&2
+    exit 1
+}
+
+# usage
+if [ $# == 0 ]; then
+    echo " Usage: ./check_slice <DIR_OF_EXP> \n eg: ./check_slice .../crace-2.11/acotsp/numC/irace "
+    exit 1
+fi
+
+DIR_EXP=$*
+
+SLICE_LOG="race_log/slice.log"
+SLICE_COPY="race_log/slice_cp.log"
+
+function convert_decimal_to_fraction {
+    decimal=$1
+    n=$2
+    if [ "$decimal" = "1.0" ]; then
+        denominator=$n
+    else
+        denominator=$(echo "scale=0; ($n + 0.5) / $decimal" | bc)
+    fi
+    echo "$n/$denominator"
+}
+
+function check_slice(){
+    tmp_file=$(mktemp)
+    line_number=0
+    while IFS= read line; do
+        ((line_number++))
+        current_decimal=$(echo "$line" | grep -oP '(?<=Model update ).*?(?= \(total/current\))')
+        current_fraction=$(convert_decimal_to_fraction $current_decimal $line_number)
+        # echo $current_fraction
+        updated_line=$(echo "$line" | awk -v rep="$current_fraction" '{gsub(/[0-9]+\.[0-9]+/, rep)}1')
+        echo "$updated_line" >> "$tmp_file"
+    done < "$SLICE_LOG"
+    mv "$tmp_file" "$SLICE_LOG"
+}
+
+function main(){
+    DIR_EXP=$1
+    find -L $DIR_EXP -type f | grep "crace.train" | while read file_line
+    do
+        # get the dir of each irace.train file
+        DIR_FILE=${file_line%/*}
+        cd $DIR_FILE
+        if [ ! -f "$SLICE_COPY" ]; then 
+            cp "$SLICE_LOG" "$SLICE_COPY"
+        fi
+        check_slice $DIR_FILE
+    done
+}
+
+for dir in $*
+do
+    main $dir
+done

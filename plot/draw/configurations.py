@@ -135,7 +135,10 @@ class Configurations:
                               order=elite_ids_sorted, \
                               width=0.5, showfliers=False,\
                               linewidth=0.5, palette="Set3")
-        fig.set_xticklabels(elite_labels, rotation=0)
+        if len(elite_labels) > 15:
+            fig.set_xticklabels(elite_labels, rotation=90)
+        else:
+            fig.set_xticklabels(elite_labels, rotation=0)
         if self.title:
             fig.set_xlabel(self.title)
         else:
@@ -152,8 +155,9 @@ class Configurations:
             for x in results_count_sorted.values():
                 plt.text(x=i, y=max_v,s=x,ha='center',size=10,color='blue')
                 i+=1
-        plt.show()
 
         plot = fig.get_figure()
         plot.savefig(self.save_name, dpi=self.dpi)
         print("#\n# {} has been saved.".format(self.file_name))
+
+        plt.show()
