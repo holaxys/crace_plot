@@ -46,6 +46,8 @@ convert <- function(output){
       elites_info <- rbind(elites_info, data.frame(id=info))
     }
   }
+  if (!dir.exists("race_log")) {
+  dir.create("race_log")}
   write.table(elites_info,"race_log/elite.log",row.names = FALSE, col.names = FALSE, quote = FALSE)
 }
 

@@ -11,6 +11,7 @@ import sys
 import statistics
 import csv
 import pandas as pd
+import numpy as np
 import scipy.stats as stats
 import seaborn as sns
 import scikit_posthocs as sp
@@ -250,7 +251,7 @@ def plot_final_elite_results(folders, rpd, repetitions=0, title="", output_filen
             for i, folder in enumerate(folders):
                 if os.path.isdir(folder):
                     results = load_race_results(folder, repetitions)
-                    avg = results['quality'].groupby(results['exp_name']).mean().to_dict()
+                    avg = results['quality'].replace([np.inf, -np.inf], np.nan).groupby(results['exp_name']).mean().to_dict()
                     folder_name = names[i] + '/' + os.path.basename(folder)
                     for exp, quality in avg.items():
                         tmp = pd.DataFrame([[folder_name, exp, quality]], columns=['folder', 'exp_name', 'quality'])
@@ -262,7 +263,7 @@ def plot_final_elite_results(folders, rpd, repetitions=0, title="", output_filen
                 folder_name = folder.split("/")[-1]
                 if os.path.isdir(folder):
                     results = load_race_results(folder, repetitions)
-                    avg = results['quality'].groupby(results['exp_name']).mean().to_dict()
+                    avg = results['quality'].replace([np.inf, -np.inf], np.nan).groupby(results['exp_name']).mean().to_dict()
                     for exp, quality in avg.items():
                         tmp = pd.DataFrame([[folder_name, exp, quality]], columns=['folder', 'exp_name', 'quality'])
                         all_results = pd.concat([all_results, tmp], ignore_index=True)
@@ -272,8 +273,8 @@ def plot_final_elite_results(folders, rpd, repetitions=0, title="", output_filen
             for i, folder in enumerate(folders):
                 if os.path.isdir(folder):
                     results = load_race_results(folder, repetitions)
-                    avg = results['quality'].groupby(results['exp_name']).mean().to_dict()
-                    folder_name = parent_names[i] + '/' + os.path.basename(folder)
+                    avg = results['quality'].replace([np.inf, -np.inf], np.nan).groupby(results['exp_name']).mean().to_dict()
+                    folder_name = parent_names[i]# + '/' + os.path.basename(folder)
                     for exp, quality in avg.items():
                         tmp = pd.DataFrame([[folder_name, exp, quality]], columns=['folder', 'exp_name', 'quality'])
                         all_results = pd.concat([all_results, tmp], ignore_index=True)
@@ -290,15 +291,15 @@ def plot_final_elite_results(folders, rpd, repetitions=0, title="", output_filen
                           whis=0.8, showfliers=False,
                         #   width=0.3, linewidth=1, palette='Set2')
                           width=0.6, linewidth=2, palette='Set2')
-        fig = sns.stripplot(x='folder', y='quality', data=all_results,
-                            color='red', size=2, jitter=True)
+        # fig = sns.stripplot(x='folder', y='quality', data=all_results,
+        #                     color='red', size=2, jitter=True)
     else:
         fig = sns.boxplot(x='folder', y='quality', data=all_results, 
                           whis=0.8, showfliers=True, fliersize=1,
                         #   width=0.3, linewidth=1, palette='Set2')
                           width=0.6, linewidth=2, palette='Set2')
-        fig = sns.stripplot(x='folder', y='quality', data=all_results,
-                            color='red', size=2, jitter=True)
+        # fig = sns.stripplot(x='folder', y='quality', data=all_results,
+        #                     color='red', size=2, jitter=True)
 
     # if stest == 'True':
     #     order = ['irace']
@@ -320,12 +321,15 @@ def plot_final_elite_results(folders, rpd, repetitions=0, title="", output_filen
         # p_values after multiple test correction
         p2 = sp.posthoc_wilcoxon(all_results, val_col='quality', group_col='folder',
                                 p_adjust='fdr_bh')
-        print("Original p_values caculated by 'Wilcoxon':\n", p1)
-        print("New p_values corrected by 'fdr_bh':\n", p2)
+        p2_4 = p2.round(4)
+        print("\nOriginal p_values caculated by 'Wilcoxon':\n", p1)
+        print("\nNew p_values corrected by 'fdr_bh':\n", p2)
+        print("\nNew rounded p_values:\n", p2_4)
 
         with open(directory + "/" + plog + '.log', 'w') as f1:
             print("Original p_values caculated by 'Wilcoxon':\n", p1, file=f1)
             print("\nNew p_values corrected by 'fdr_bh':\n", p2, file=f1)
+            print("\nNew rounded p_values:\n", p2_4, file=f1)
             print("\n", file=f1)
 
         order = []
@@ -369,7 +373,7 @@ def plot_final_elite_results(folders, rpd, repetitions=0, title="", output_filen
     plot = fig.get_figure()
     plot.savefig(directory + "/" + output_filename + '.png', bbox_inches='tight', dpi=500)
 
-    print("# Plot is saved in folder: ", directory)
+    print("\n# Plot is saved in folder: ", directory)
 
 def parse_arguments():
     """
