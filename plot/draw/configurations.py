@@ -51,7 +51,7 @@ class Configurations:
         self.draw_method = options.drawMethod.value = "boxplot"
 
         exp_folders = sorted([subdir for subdir, dirs, files in os.walk(self.exec_dir) \
-                      for dir in dirs if dir == 'race_log' ])
+                      for dir in dirs if dir == 'asyncio_log' ])
         print("# Loading Crace results..")
         self.load = ReadResults(exp_folders, options)
         self.all_results, self.exp_names, self.elite_ids = self.load.load_for_configurations()

@@ -22,7 +22,7 @@
 #   1. use ./find_elite_configs_crace /path/to/crace 
 #      to find out all elite configurations appear in the crace procedure. 
 #   2. use ./elites_on_instances /path/to/crace /path/to/instance
-#      to execute elite(s) on the provided configurations. 
+#      to execute elite(s) on the provided instances. 
 
 # For irace results:
 #   1. use R script "R2CSV.r" to find out the elitist and elite configurations
