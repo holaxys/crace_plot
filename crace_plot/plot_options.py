@@ -53,12 +53,12 @@ class PlotOptions:
             self.print_crace_plot_header()
             self.print_options()
         except CE.OptionError as err:
-            print("ERROR: There was an error while reading crace-plot options:")
+            print("\nERROR: There was an error while reading crace-plot options:")
             print(err)
             sys.tracebacklimit = 0
             raise
         except CE.FileError as err:
-            print("ERROR: There was an error while reading crace-plot options file:")
+            print("\nERROR: There was an error while reading crace-plot options file:")
             print(err)
             sys.tracebacklimit = 0
             raise
@@ -66,7 +66,7 @@ class PlotOptions:
             sys.tracebacklimit = 0
             raise
         except Exception as err:
-            print("ERROR: There was an error: ")
+            print("\nERROR: There was an error: ")
             print(err)
             sys.tracebacklimit = 7
             raise
@@ -167,6 +167,8 @@ class PlotOptions:
 
         if len(folders) == 0:
             raise CE.PlotError("No crace log files in the provided folder.")
+        else:
+            self.execDir.set_value(folders)
 
         if self.dataType.value == "configurations":
             self.drawMethod.value = "boxplot"
@@ -174,6 +176,9 @@ class PlotOptions:
 
         if self.dataType.value in ["c", "config", "configs", "configurations"]:
             self.training.set_value(True)
+        else:
+            if not self.training.value and not self.test.value:
+                self.test.set_value(True)
 
         if self.drawMethod.value is not None and self.execDir.value is None:
             raise CE.ParameterValueError("Option 'execDir' must be provided when 'drawMethod' is not None!")
@@ -202,21 +207,8 @@ class PlotOptions:
         if self.statisticalTest.value in (True, "True", "ture") and self.drawMethod.value not in "(boxplot, violinplot)":
             raise CE.ParameterValueError("When '{}' is enable, drawMethod must be in (boxplot, violinplot)!".format(self.statisticalTest.value))
 
-        if (self.slice.value is True and self.drawMethod.value in "(histplot)"
-            and self.multiParameters.value is None):
-            raise CE.ParameterValueError("Parameter 'multiParameters'(-m) must be provided here!")
-
-        if not self.slice.is_set() and self.drawMethod.value in "(boxplot, heatmap)":
-            self.set_option(self.slice, True)
-
-        if self.numConfigurations.value == 'all': self.test.set_value(True)
-        
-        if self.numConfigurations.value == 'allelites':
-            if not os.path.exists(os.path.join(self.execDir.value, "elites.log")):
-                raise CE.ParameterValueError("There is no 'elites.log' in exeDir. Use util/others/find_elite_configs_crace to generate this file.")
-
-        if self.numConfigurations.value != 'else':
-            self.elseNumConfigs.value = 'null'
+        if self.configurations.value:
+            self.configurations.set_value([int(x) for x in self.configurations.value])
 
     @staticmethod
     def expand_folder_arg(folder_arg):
@@ -229,7 +221,7 @@ class PlotOptions:
         """
         folders = []
         for folder in folder_arg:
-            folders.extend(glob.glob(folder))
+            folders.extend([f for f in glob.glob(folder) if os.path.isdir(f)])
 
         if len(folders) == 0:
             raise CE.ParameterValueError("No crace log files in the provided execDir {}.".format(folder_arg))

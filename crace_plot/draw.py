@@ -8,8 +8,6 @@ import textwrap
 import numpy as np
 import pandas as pd
 import seaborn as sns
-sns.set_theme(rc={'figure.figsize':(11.7,3)})
-sns.set_style('white')
 
 import plotly.graph_objects as go
 import plotly.express as px
@@ -20,25 +18,33 @@ from statannotations.Annotator import Annotator
 from crace.errors import OptionError
 
 sns.color_palette("vlag", as_cmap=True)
+sns.set_style('white')
 # pd.set_option('display.max_rows', None)
 # pd.set_option('display.max_columns', None)
 pd.set_option('display.expand_frame_repr', False)
 pd.set_option('display.width', 1000)
 
 class DrawMethods:
-    def __init__(self, options, data, exp_name=None, elite_ids=None, parameters=None, exp_folder=None, ) -> None:
+    def __init__(self, options, data, common_dict, exp_name=None, elite_ids=None, parameters=None, exp_folder=None, ) -> None:
 
         self.data = data
         self.exp_names = exp_name
         self.exp_fodler = exp_folder
+        if self.exp_fodler:
+            self._single = True
+
         self.elite_ids = elite_ids
         self.parameters = parameters
 
         self.exec_dir = options.execDir.value
-        self.out_dir = options.outDir.value
-        
+        if options.outDir.value == options.outDir.default:
+            self.out_dir = self.exp_fodler
+        else:
+            sself.out_dir = common_dict
+
         self.title = options.title.value
         self.file_name = options.fileName.value
+        self.save_name = os.path.join(self.out_dir, self.file_name)
 
         self.key_param = options.keyParameter.value
         self.multi_params = options.multiParameters.value
@@ -46,18 +52,63 @@ class DrawMethods:
             self.catx = options.multiParameters.value.split(',')[0]
             self.caty = options.multiParameters.value.split(',')[1]
 
-        self.slice = options.slice.value
         self.dpi = options.dpi.value
         self.showfliers = options.showfliers.value
         self.stest = options.statisticalTest.value
 
-class DrawConfigs(DrawMethods):
-    def __init__(self, options, data, exp_name, elite_ids, parameters, exp_folder) -> None:
-        super().__init__(options, data, exp_name, elite_ids, parameters, exp_folder)
+        self.set_layout(options.size.value)
 
-        if options.outDir.value == options.outDir.default:
-            self.out_dir = self.exp_fodler
-            self.save_name = os.path.join(self.out_dir, self.file_name)
+    def set_layout(self, size):
+        if size in ('l', 'large'): column = 1
+        elif size in ('s', 'small'): column = 3
+        else: column = 2
+
+        if column == 1:
+            fig_width = 11.69 
+            fig_height = 8.27
+
+        if column in (2,3):
+            fig_width = 3.16
+            fig_height = 2.24
+
+        margin = 0 
+        left_margin = margin / fig_width
+        right_margin = 1 - (margin / fig_width)
+        top_margin = 1 - (margin / fig_height)
+        bottom_margin = margin / fig_height
+
+        self._fig_width = fig_width
+        self._fig_height = fig_height
+
+        # large: plot used in one column
+        if column == 1:
+            sns.set_theme(rc={'figure.figsize':(fig_width,fig_height)}, font_scale=1.5) 
+            fontSize = 17
+            fliersize = 2
+
+        # mid: plots used in double columns
+        if column == 2:
+            sns.set_theme(rc={'figure.figsize':(fig_width,fig_height)}, font_scale=0.7) 
+            fontSize = 7 
+            fliersize = .5
+        
+        # small: plots used in trible columns
+        if column == 3:
+            sns.set_theme(rc={'figure.figsize':(fig_width,fig_height)}, font_scale=0.9) 
+            fontSize = 12
+            fliersize = .5
+
+        self._fontSize = fontSize
+        self._fliersize = fliersize
+
+        fig, axis = plt.subplots()  # pylint: disable=undefined-variable
+        fig.subplots_adjust(hspace=0.5, wspace=0.4, bottom=0.2)
+
+class DrawConfigs(DrawMethods):
+    def __init__(self, options, data, common_dict, exp_name, elite_ids, parameters, exp_folder) -> None:
+        super().__init__(options, data, common_dict, exp_name, elite_ids, parameters, exp_folder)
+
+        if 'slice' in data.columns: self.slice = True
 
     def draw_parallelcoord(self):
         """
@@ -67,17 +118,13 @@ class DrawConfigs(DrawMethods):
         num = len(self.data)
 
         data_new = self.data.copy()
-        keyParam = ""
-
-        self.parameters['configuration_id'] = {}
-        self.parameters['configuration_id']['type'] = 'i'
-        self.parameters['configuration_id']['domain'] = [int(self.data['configuration_id'].min()), int(self.data['configuration_id'].max())]
-        keyParam = 'configuration_id'
 
         if self.key_param not in ('null', None):
             keyParam = self.key_param
+        elif self.slice:
+            keyParam = 'slice'
         else:
-            keyParam = keyParam 
+            keyParam = '.ID'
 
         new_parameters = []
         new_parameters = copy.deepcopy(self.parameters)
@@ -109,18 +156,17 @@ class DrawConfigs(DrawMethods):
                     new_parameters[name]['domain'].append(len(old))
                     self.parameters[name]['domain'].append('null')
                     print("! WARNING: {} has 'null' values.".format(name))
-            if col1[i]:
-                print("! WARNING: all values in {} are NaN, it will be deleted for the plot!".format(name) )
+            if col1.iloc[i]:
+                print("\n! WARNING: all values in {} are NaN, it will be deleted for the plot!".format(name) )
                 new_parameters.pop(col1.index[i])
 
         print("#\n# The new self.parameters:")
-        print(new_parameters.keys())
+        print("# ", ', '.join(list(new_parameters.keys())))
         print("#\n# The new Crace results:")
         print(data_new)
 
-        print("#\n# Elite configurations from the Crace results you provided that will be analysed here :")
-        for a in self.elite_ids.keys():
-            print("#   {}: {}".format(a, self.elite_ids[a]))
+        print("#\n# Elite configurations from the Crace results you provided that will be analysed here:\n# ",
+              ', '.join([str(x) for x in self.elite_ids]))
 
         plot_dict = []
         each_dict = {}
@@ -182,8 +228,8 @@ class DrawConfigs(DrawMethods):
         for i in range(len(col1)):
             name = col1.index[i]
             per = list(self.data[name]).count('null')/float(num)
-            if col1[i]:
-                print("! WARNING: all values in {} are NaN, it will be deleted for the plot!".format(name) )
+            if col1.iloc[i]:
+                print("\n! WARNING: all values in {} are NaN, it will be deleted for the plot!".format(name) )
                 new_parameters.pop(col1.index[i])
             if per > 0:
                 if new_parameters[name]['type'] != 'c':
@@ -273,8 +319,8 @@ class DrawConfigs(DrawMethods):
         for i in range(len(col1)):
             name = col1.index[i]
             per = list(data[name]).count('null')/float(num)
-            if col1[i]:
-                print("! WARNING: all values in {} are NaN, it will be deleted for the plot!".format(name) )
+            if col1.iloc[i]:
+                print("\n! WARNING: all values in {} are NaN, it will be deleted for the plot!".format(name) )
                 new_parameters.pop(col1.index[i])
             if per > 0:
                 if new_parameters[name]['type'] != 'c':
@@ -378,7 +424,7 @@ class DrawConfigs(DrawMethods):
         for name in self.parameters.keys():
             per = list(self.data[name]).count('null')/len(self.data)
             if per == float(1):
-                print("! WARNING: all values in {} are 'null', it will be deleted for the plot!".format(name))
+                print("\n! WARNING: all values in {} are 'null', it will be deleted for the plot!".format(name))
                 dimensions.pop(dimensions.index(name))
             elif per > 0:
                 data_new[name].replace('null', np.nan, inplace=True)
@@ -386,7 +432,7 @@ class DrawConfigs(DrawMethods):
         col = data_new.count() == 0
         for i in range(len(col)):
             if col[i] and col.index[i] in dimensions:
-                print("! WARNING: all values in {} are NaN, it will be deleted for the plot!".format(col.index[i]) )
+                print("\n! WARNING: all values in {} are NaN, it will be deleted for the plot!".format(col.index[i]) )
                 dimensions.pop(dimensions.index((col.index[i])))
 
         print("#")
@@ -403,11 +449,11 @@ class DrawConfigs(DrawMethods):
         fig = sns.pairplot(data=data_new,
                         hue=self.key_param,
                         vars=dimensions,
-                        palette="Set3",
+                        palette="vlag",
                         diag_kind='kde',
                         height=5)
 
-        # plt.suptitle(self.title, size=15)
+        # plt.suptitle(self.title, size=self._fontSize)
         fig.savefig(self.save_name, dpi=self.dpi)
         print("# {} has been saved.".format(self.file_name))
 
@@ -440,7 +486,7 @@ class DrawConfigs(DrawMethods):
         for name in self.parameters.keys():
             per = list(self.data[name]).count('null')/len(self.data)
             if per == float(1):
-                print("! WARNING: all values in {} are 'null', it will be deleted for the plot!".format(name))
+                print("\n! WARNING: all values in {} are 'null', it will be deleted for the plot!".format(name))
                 param_names.pop(param_names.index(name))
             elif per > 0:
                 data_new[name].replace('null', np.nan, inplace=True)
@@ -448,20 +494,19 @@ class DrawConfigs(DrawMethods):
         col = data_new.count() == 0
         for i in range(len(col)):
             if col[i] and col.index[i] in param_names:
-                print("! WARNING: all values in {} are NaN, it will be deleted for the plot!".format(col.index[i]) )
+                print("\n! WARNING: all values in {} are NaN, it will be deleted for the plot!".format(col.index[i]) )
                 param_names.pop(param_names.index((col.index[i])))
 
         print("#")
 
 
-        if self.slice not in (True, "true", "True"):
+        if not self.slice:
             num = 8
             page_num = math.ceil(len(param_names)/num)
             params = locals()
             file_names = locals()
             start = 0
             for i in range(0, page_num):
-                # fig, axis = plt.subplots(1, 3, sharey=False, sharex=False)
                 fig, axis = plt.subplots(2, 4, sharey=False, sharex=False)
                 plt.subplots_adjust(hspace=0.5, wspace=0.4, bottom=0.2)
                 title = '\nPage ' + str(i+1) + ' of ' + str(page_num)
@@ -508,7 +553,7 @@ class DrawConfigs(DrawMethods):
                 file_name = file_names['plot%s' % i] 
                 save_name = os.path.join(self.out_dir, file_name)
                 
-                plt.suptitle(self.title, size=15)
+                plt.suptitle(self.title, size=self._fontSize)
                 plot.savefig(save_name, dpi=self.dpi)
                 print("# {} has been saved in {}.".format(file_name, self.out_dir))
 
@@ -550,7 +595,7 @@ class DrawConfigs(DrawMethods):
                 file_name = file_names['plot%s' % i]
                 save_name = os.path.join(self.out_dir, file_name)
                 
-                plt.suptitle(self.title, size=15)
+                plt.suptitle(self.title, size=self._fontSize)
                 plot.savefig(save_name, dpi=self.dpi)
                 print("# {} has been saved in {}.".format(file_name, self.out_dir))
 
@@ -586,7 +631,7 @@ class DrawConfigs(DrawMethods):
         for name in self.parameters.keys():
             per = list(self.data[name]).count('null')/len(self.data)
             if per == float(1):
-                print("! WARNING: all values in {} are 'null', it will be deleted for the plot!".format(name))
+                print("\n! WARNING: all values in {} are 'null', it will be deleted for the plot!".format(name))
                 param_names.pop(param_names.index(name))
             elif per > 0:
                 data_new[name].replace('null', np.nan, inplace=True)
@@ -594,7 +639,7 @@ class DrawConfigs(DrawMethods):
         col = data_new.count() == 0
         for i in range(len(col)):
             if col.iloc[i] and col.index[i] in param_names:
-                print("! WARNING: all values in {} are NaN, it will be deleted for the plot!".format(col.index[i]) )
+                print("\n! WARNING: all values in {} are NaN, it will be deleted for the plot!".format(col.index[i]) )
                 param_names.pop(param_names.index((col.index[i])))
 
         print("#")
@@ -625,8 +670,8 @@ class DrawConfigs(DrawMethods):
                     if idx < page_plots:
                         name = params['params%s' % i][idx]
                         fig = getattr(sns, method)(data=data_new,
-                            x=name, y='slice', width=0.5, fliersize=1, linewidth=0.5,
-                            orient='h', palette="Set3", ax=ax)
+                            x=name, y='slice', width=0.5, fliersize=self._fliersize, linewidth=0.5,
+                            orient='h', palette="vlag", ax=ax)
                         if len(name) > 25:
                             name = re.sub(r"(.{25})", "\\1\n", name)
                         if column != 0:
@@ -645,7 +690,7 @@ class DrawConfigs(DrawMethods):
                 file_name = file_names['plot%s' % i]
                 save_name = os.path.join(self.out_dir, file_name)
 
-                plt.suptitle(self.title, size=15)
+                plt.suptitle(self.title, size=self._fontSize)
                 plot.savefig(save_name, dpi=self.dpi)
                 print("# {} has been saved in {}.".format(file_name, self.out_dir))
         else:
@@ -662,17 +707,20 @@ class DrawConfigs(DrawMethods):
                 fig = sns.boxplot(data=data_new,
                     x=name, y='slice',
                     hue='slice', legend=False,
-                    width=0.5, fliersize=1, linewidth=0.5,
-                    orient='h', palette="Set3")
+                    width=0.5, fliersize=self._fliersize, linewidth=0.5,
+                    orient='h', palette="vlag")
                 if len(name) > 25:
                     name = re.sub(r"(.{25})", "\\1\n", name)
-                fig.set_xlabel('\n'+name, rotation=0)
+                fig.set_xlabel('\n'+name, rotation=0, fontsize=self._fontSize)
+                fig.set_ylabel('slice', fontsize=self._fontSize)
+                fig.tick_params(axis='x', labelsize=self._fontSize)
+                fig.tick_params(axis='y', labelsize=self._fontSize)
 
                 plot = fig.get_figure()
                 file_name = file_names['plot%s' % i]
                 save_name = os.path.join(self.out_dir, file_name)
 
-                plt.suptitle(self.title, size=15)
+                plt.suptitle(self.title, size=self._fontSize)
                 plot.savefig(save_name, dpi=self.dpi)
                 print("# {} has been saved.".format(file_name))
 
@@ -699,7 +747,7 @@ class DrawConfigs(DrawMethods):
         for name in self.parameters.keys():
             per = list(self.data[name]).count('null')/len(self.data)
             if per == float(1):
-                print("! WARNING: all values in {} are 'null', it will be deleted for the plot!".format(name))
+                print("\n! WARNING: all values in {} are 'null', it will be deleted for the plot!".format(name))
                 param_names.pop(param_names.index(name))
             elif per > 0:
                 data_new[name].replace('null', np.nan, inplace=True)
@@ -707,7 +755,7 @@ class DrawConfigs(DrawMethods):
         col = data_new.count() == 0
         for i in range(len(col)):
             if col[i] and col.index[i] in param_names:
-                print("! WARNING: all values in {} are NaN, it will be deleted for the plot!".format(col.index[i]) )
+                print("\n! WARNING: all values in {} are NaN, it will be deleted for the plot!".format(col.index[i]) )
                 param_names.pop(param_names.index((col.index[i])))
 
         print("#")
@@ -759,23 +807,55 @@ class DrawConfigs(DrawMethods):
         return count
 
 class DrawExps(DrawMethods):
-    def __init__(self, options, data, elite_ids) -> None:
-        super().__init__(options=options, data=data, elite_ids=elite_ids)
+    # def __init__(self, options, data, common_dict, elite_ids, num_config) -> None:
+    #     super().__init__(options=options, data=data, common_dict=common_dict, elite_ids=elite_ids)
+    def __init__(self, options, data, common_dict, elite_ids, num_config, exp_name=None, exp_folder=None) -> None:
+        super().__init__(options=options,
+                         data=data,
+                         common_dict=common_dict,
+                         exp_name=exp_name,
+                         elite_ids=elite_ids,
+                         exp_folder=exp_folder)
 
         self.save_name = os.path.join(self.out_dir, self.file_name)
-        self.exp_names = list(self.elite_ids.keys())
-        if options.test.value: self.num_config = 1
+        if isinstance(self.elite_ids, dict):
+            self.exp_names = list(self.elite_ids.keys())
+        elif isinstance(self.elite_ids, list):
+            self.exp_names = self.elite_ids
+        self.num_config = num_config
+
+    def draw_boxplot(self):
+        """
+        Use data to draw a boxplot for the top5 elite configurations
+        """
+        if not self._single:
+            self.draw_results('boxplot')
+        else:
+            self.draw_tuning('boxplot')
+
+    def draw_violinplot(self):
+        """
+        Use data to draw a violin for the top5 elite configurations
+        """
+        if not self._single:
+            self.draw_results('violinplot')
+        else:
+            self.draw_tuning('violinplot')
 
     def draw_results(self, method):
-
+        """
+        draw plot for experiments from the crace test results
+        """
         num = self.data['folder'].nunique()
+        data = copy.deepcopy(self.data)
 
-        print("\n# The experiment name(s) of the Crace results you provided:")
-        print("# ", textwrap.fill(re.sub('\'','',str(self.exp_names)), width=70))
+        print("# The experiment name(s) of the Crace results you provided:")
+        print("#  ", textwrap.fill(re.sub("[\[\]']",'',str(self.exp_names)), width=70))
 
+        print("#\n# The elite configuration ids of each experiment are:")
         if self.num_config != 1:
             for i in range(0, num):
-                print("#   {}: {}".format(exp_names[i], elite_ids[exp_names[i]]))
+                print("#   {}: {}".format(self.exp_names[i], self.elite_ids[self.exp_names[i]]))
 
             i = 1
             column = 1
@@ -796,13 +876,13 @@ class DrawExps(DrawMethods):
                         data_exp = data.loc[data['exp_name']==exp_names[n]]
                         if self.showfliers == True:
                             fig = getattr(sns, method)(
-                                x='configuration_id', y='quality', data=data_exp, width=0.5, fliersize=1, linewidth=0.5, palette="Set2", ax=axis[i,j])
+                                x='configuration_id', y='avg', data=data_exp, width=0.5, fliersize=self._fliersize, linewidth=0.5, palette="vlag", ax=axis[i,j])
                         else:
                             fig = getattr(sns, method)(
-                                x='configuration_id', y='quality', data=data_exp, width=0.5, showfliers=False, linewidth=0.5, palette="Set2", ax=axis[i,j])
-                        print(elite_ids[exp_names[n]])
-                        fig.set_xticklabels(elite_ids[exp_names[n]], rotation=0, fontsize=10)
-                        fig.set_xlabel(exp_names[n])
+                                x='configuration_id', y='avg', data=data_exp, width=0.5, showfliers=False, linewidth=0.5, palette="vlag", ax=axis[i,j])
+                        print("#   {}: {}\n".format(self.exp_names[n], self.elite_ids[self.exp_names[n]]))
+                        fig.set_xticklabels(self.elite_ids[exp_names[n]], rotation=0, fontsize=self._fontSize-2)
+                        fig.set_xlabel(self.exp_names[n])
                         if j != 0:
                             fig.set_ylabel('')
                         n += 1  
@@ -811,33 +891,33 @@ class DrawExps(DrawMethods):
                     data_exp = data.loc[data['exp_name']==exp_names[n]]
                     if self.showfliers == True:
                         fig = getattr(sns, method)(
-                            x='configuration_id', y='quality', data=data_exp, width=0.5, fliersize=1, linewidth=0.5, palette="Set2", ax=axis[i])
+                            x='configuration_id', y='avg', data=data_exp, width=0.5, fliersize=self._fliersize, linewidth=0.5, palette="vlag", ax=axis[i])
                     else:
                         fig = getattr(sns, method)(
-                            x='configuration_id', y='quality', data=data_exp, width=0.5, showfliers=False, linewidth=0.5, palette="Set2", ax=axis[i])
-                    fig.set_xticklabels(elite_ids[exp_names[n]], rotation=0)
-                    fig.set_xlabel(exp_names[n])
+                            x='configuration_id', y='avg', data=data_exp, width=0.5, showfliers=False, linewidth=0.5, palette="vlag", ax=axis[i])
+                    fig.set_xticklabels(self.elite_ids[exp_names[n]], rotation=0)
+                    fig.set_xlabel(self.exp_names[n])
                     if i != 0:
                             fig.set_ylabel('')
                     n += 1 
             else:
                 if self.showfliers == True:
-                    fig = getattr(sns, method)(x='configuration_id', y='quality', data=data, width=0.5, fliersize=2, linewidth=0.5, palette="Set2") 
+                    fig = getattr(sns, method)(x='configuration_id', y='avg', data=data, width=0.5, fliersize=self._fliersize, linewidth=0.5, palette="vlag") 
 
                 else:
-                    fig = getattr(sns, method)(x='configuration_id', y='quality', data=data, width=0.5, showfliers=False, linewidth=0.5, palette="Set2") 
-                fig.set_xticklabels(elite_ids[exp_names[0]], rotation=0)
-                fig.set_xlabel(exp_names[0])
+                    fig = getattr(sns, method)(x='configuration_id', y='avg', data=data, width=0.5, showfliers=False, linewidth=0.5, palette="vlag") 
+                fig.set_xticklabels(self.elite_ids[exp_names[0]], rotation=0)
+                fig.set_xlabel(self.exp_names[0])
 
         elif self.num_config == 1:
 
-            ids = re.sub('}','',re.sub('{','',re.sub('\'','',str(elite_ids))))
+            ids = re.sub('}','',re.sub('{','',re.sub('\'','',str(self.elite_ids))))
             print("#   {}".format(ids))
 
             if self.showfliers == True:
-                fig = getattr(sns, method)(x='exp_name', y='quality', data=data)
+                fig = getattr(sns, method)(x='exp_name', y='avg', data=data)
             else:
-                fig = getattr(sns, method)(x='exp_name', y='quality', data=data)
+                fig = getattr(sns, method)(x='exp_name', y='avg', data=data)
 
             fig.set_xlabel('\n{}'.format(ids))
 
@@ -870,10 +950,9 @@ class DrawExps(DrawMethods):
                     p_values.append(p2.loc[x, y])
 
             annotator = Annotator(fig, pairs=pairs, order=order,
-                                data=data, x='exp_name', y='quality')
+                                data=data, x='exp_name', y='avg')
             annotator.configure(test='Wilcoxon', text_format='star', comparisons_correction='fdr_bh',
-                                line_width=0.5, fontsize=8)
-                                # line_width=1, fontsize=12)
+                                line_width=0.5, fontsize=self._fontSize-2)
             # annotator.apply_and_annotate()
 
             with open(self.out_dir + "/" + plog + '.log', 'a') as f1:
@@ -887,18 +966,93 @@ class DrawExps(DrawMethods):
 
         
         plot = fig.get_figure()
-        plt.suptitle(self.title, size=15)
+        plt.suptitle(self.title, size=self._fontSize)
         plot.savefig(self.save_name, dpi=self.dpi)
-        print("# {} has been saved.".format(self.file_name))
+        print("#\n# {} has been saved in {}.".format(self.file_name, self.out_dir))
 
-    def draw_boxplot(self):
+    def draw_tuning(self, method):
         """
-        Use data to draw a boxplot for the top5 elite configurations
+        draw plot for experiments from the crace tuning part
         """
-        self.draw_results('boxplot')
+        print("#\n# The configurations selected for the tuning experiments:")
+        configs = self.data['configuration_id'].unique().tolist()
+        print("#  ", textwrap.fill(re.sub("[\[\]']",'',str(configs)), width=70))
 
-    def draw_violinplot(self):
-        """
-        Use data to draw a violin for the top5 elite configurations
-        """
-        self.draw_results('violinplot')
+        qualities = copy.deepcopy(self.data[['configuration_id', 'quality']])
+
+        results1 = qualities.groupby(['configuration_id']).mean().T.to_dict()
+        results2 = self.data.groupby(['configuration_id']).count().T.to_dict()
+
+        results_mean = {}
+        min_quality = float("inf")
+        best_id = 0
+        for id, item in results1.items():
+            results_mean[int(id)] = None
+            results_mean[int(id)] = item['quality']
+            if item['quality'] < min_quality:
+                min_quality = item['quality']
+                best_id = id
+        results_count = {}
+        for id, item in results2.items():
+            results_count[int(id)] = None
+            results_count[int(id)] = item['instance_id']
+
+        final_best = self.elite_ids[0]
+        
+        # Sort elite_ids based on results_count values
+        #   1. num of instances, increase
+        #   2. mean quality, decrease
+        results_count_sorted = {k:v for k, v in sorted(results_count.items(), key=lambda x: (x[1], -results_mean[x[0]]), reverse=False)}
+        elite_ids_sorted = [str(x) for x in results_count_sorted.keys()]
+
+        elite_labels = []
+        key_name = "-%(num)s-" % {"num": int(best_id)}
+        for x in elite_ids_sorted:
+            if int(x) == int(best_id):
+                x = key_name
+            elif int(x) == final_best:
+                if int(x) == int(best_id):
+                    x = "-%(num)s-" % {"num": x}
+                x = "*%(num)s*" % {"num": x}
+            elite_labels.append(x)
+
+        print("#\n# Elite configurations from the Crace results you provided that will be analysed here :")
+        print("#  ", textwrap.fill(re.sub("[\[\]']",'',str(elite_labels)), width=70))
+
+        # draw the plot
+        if self.showfliers == True:
+            fig = getattr(sns, method)(x='configuration_id', y='quality', data=self.data,
+                              order=elite_ids_sorted,
+                              hue='configuration_id', legend=False,
+                              width=0.5, showfliers=True, fliersize=2,
+                              linewidth=0.5, palette="vlag")
+        else:
+            fig = getattr(sns, method)(x='configuration_id', y='quality', data=self.data,
+                              order=elite_ids_sorted,
+                              hue='configuration_id', legend=False,
+                              width=0.5, showfliers=False,
+                              linewidth=0.5, palette="vlag")
+        fig.set_xticks(range(len(elite_labels)))
+        if len(elite_labels) > 15:
+            fig.set_xticklabels(elite_labels, rotation=90)
+        else:
+            fig.set_xticklabels(elite_labels, rotation=0)
+        if self.title:
+            fig.set_xlabel(self.title)
+        else:
+            fig.set_xlabel(exp_names)
+
+        results_count = dict(sorted(results_count.items(), key=lambda x:x[0]))
+
+        # add instance numbers
+        results3 = self.data.max().T.to_dict()
+        max_v = results3['quality'] * 1.0005
+        plt.text(x=-0.5,y=max_v,s="ins_num",ha='right',size=self._fontSize,color='blue')
+        i=0
+        for x in results_count_sorted.values():
+            plt.text(x=i, y=max_v,s=x,ha='center',size=self._fontSize,color='blue')
+            i+=1
+
+        plot = fig.get_figure()
+        plot.savefig(self.save_name, dpi=self.dpi)
+        print("#\n# {} has been saved in {}.".format(self.file_name, self.out_dir))
