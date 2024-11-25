@@ -1,0 +1,2 @@
+[console_scripts]
+crace_plot = crace_plot.scripts:crace_plot

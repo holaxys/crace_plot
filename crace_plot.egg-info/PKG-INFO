@@ -1,0 +1,23 @@
+Metadata-Version: 2.1
+Name: crace_plot
+Version: 0.0.1
+Summary: A description of the CRACE_PLOT package
+Home-page: http://your_project_website_or_repo
+Author: Yunshuang XIAO
+Author-email: yunshuang.xiao@ulb.be
+Classifier: Programming Language :: Python :: 3
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Requires-Python: >=3.6
+Description-Content-Type: text/markdown
+Requires-Dist: numpy>=1.19.0
+Requires-Dist: pandas>=1.1.2
+Requires-Dist: plotly>=5.0.0
+Requires-Dist: matplotlib>=3.5.0
+Requires-Dist: scikit_posthocs>=0.8.0
+Requires-Dist: seaborn>=0.12.0
+Requires-Dist: setuptools>=72.0.0
+Requires-Dist: statannotations>=0.6.0
+Requires-Dist: wheel>=0.40.0
+
+

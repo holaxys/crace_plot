@@ -1,0 +1,10 @@
+crace.egg
+matplotlib
+numpy
+pandas
+plotly
+scikit_posthocs
+seaborn
+setuptools
+statannotations
+wheel
