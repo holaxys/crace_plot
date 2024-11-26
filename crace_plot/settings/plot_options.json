@@ -131,7 +131,7 @@
     {
         "name": "training",
         "type": "e",
-        "short": "-ta",
+        "short": "-tr",
         "long": "--training",
         "default": null,
         "section": "Crace results",
@@ -212,24 +212,69 @@
     },
     {
         "name": "showfliers",
-        "type": "b",
-        "short": "-s",
+        "type": "e",
+        "short": "-sf",
         "long": "--showfliers",
-        "default": 1,
+        "default": null,
         "section": "Draw plot",
         "critical": 0,
         "description": "The parameter showfliers used for saving plot.",
         "vignettes": "Enable\/disable showfliers when drawing the picture."
     },
     {
+        "name": "showmeans",
+        "type": "e",
+        "short": "-sm",
+        "long": "--showmeans",
+        "default": null,
+        "section": "Draw plot",
+        "critical": 0,
+        "description": "The parameter showmeans used for saving plot.",
+        "vignettes": "Enable\/disable showmeans when drawing the picture."
+    },
+    {
+        "name": "showOrigins",
+        "type": "e",
+        "short": "-so",
+        "long": "--show-orgings",
+        "default": null,
+        "section": "Draw plot",
+        "critical": 0,
+        "description": "Enable\/disable show original data points in the plot.",
+        "vignettes": "Enable\/disable show original data points in the plot."
+    },
+    {
         "name": "statisticalTest",
-        "type": "b",
+        "type": "e",
         "short": "-st",
         "long": "--statistical-test",
-        "default": 0,
+        "default": null,
         "section": "Draw plot",
         "critical": 0,
         "description": "Add p-values for plots or not.",
         "vignettes": "Enable\/disable add p-values when drawing the plot."
+    },
+    {
+        "name": "showAnnotators",
+        "type": "e",
+        "short": "-sa",
+        "long": "--show-annotators",
+        "default": 1,
+        "section": "Draw plot",
+        "critical": 0,
+        "description": "Enable\/disable show annotators for p-values in the plot.",
+        "vignettes": "Enable\/disable show annotators for p-values in the plot."
+    },
+    {
+        "name": "confidence",
+        "type": "r",
+        "short": "",
+        "long": "--confidence",
+        "default": 0.95,
+        "domain": "(0.01,1.00)",
+        "section": "Statistical test",
+        "critical": 1,
+        "description": "Confidence level for the statistical test.",
+        "vignettes": "Confidence level for the statistical test."
     }
 ]

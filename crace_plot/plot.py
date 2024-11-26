@@ -25,6 +25,6 @@ class CracePlot:
         except CE.PlotError as err:
             print("\nERROR: There was an error while drawing plot: ")
             print(err)
-            sys.tracebacklimit = 7
+            sys.tracebacklimit = 0
             raise
 

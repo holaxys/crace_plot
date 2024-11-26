@@ -27,23 +27,34 @@ class ReadCraceResults:
 
         if self.data_type == 'c' or options.training.value:
             self._single = True
-            self.exp_names = []
-            self.elites = {}
-            self.results = {}
         elif self.data_type == 'e':
             self._single = False
-            self.exp_names = {}
-            self.elites = {}
-            self.results = pd.DataFrame()
+        self._avg = True
 
         self.exp_folders = []
         for folder in self.exec_dir:
             self.exp_folders.extend(sorted(subdir for subdir, dirs, files in os.walk(folder) \
                                            for dir in dirs if dir == 'race_log' ))
-            if not self._single:
-                if len(self.exp_folders) == 1: continue
-                else:
-                    self.exp_folders = list(set(os.path.dirname(x) for x in self.exp_folders))
+        dir_folders = list(set(os.path.dirname(x) for x in self.exp_folders))
+
+        if not self._single and len(dir_folders) != len(self.exp_folders):
+            self.exp_folders = list(set(os.path.dirname(x) for x in self.exp_folders))
+        else:
+            self._avg = False
+
+        if len(self.exp_folders) == 1:
+            self._avg = False
+
+        self._pair = False
+
+        self.elites = {}
+
+        if self._single == True and self._avg == True:
+            self.exp_names = []
+            self.results = {}
+        elif self._single == False or not self._avg:
+            self.exp_names = {}
+            self.results = pd.DataFrame()
 
         self._directory = os.path.commonpath([os.path.abspath(x) for x in self.exec_dir])
         self.parse_num_config()
@@ -112,6 +123,14 @@ class ReadExperiments(ReadCraceResults):
         self._test = False if options.training.value else True
         self._file_name = options.fileName.value
 
+        l = logging.getLogger('st_log')
+        filehandler = logging.FileHandler(self._directory + "/" + self._file_name + '.log', mode='w')
+        filehandler.setLevel(0)
+        streamhandler = logging.StreamHandler()
+        l.setLevel(logging.DEBUG)
+        l.addHandler(filehandler)
+        l.addHandler(streamhandler)
+
         self.load_data()
         self.draw_plot()
 
@@ -120,8 +139,9 @@ class ReadExperiments(ReadCraceResults):
         load experiments information
         """
         self.exp_names = [os.path.relpath(os.path.abspath(x), self._directory) for x in self.exp_folders]
+        print(f"TEST execdir {self.exec_dir}, folders {self.exp_folders}, names {self.exp_names}, common {self._directory}")
 
-        if not self._single:
+        if not self._single and self._avg:
             # load data from multiple results
             avg = {}
             med = {}
@@ -136,6 +156,7 @@ class ReadExperiments(ReadCraceResults):
                 avg[folder_name] = []
                 med[folder_name] = []
                 std[folder_name] = []
+                # print("# Reading log files from folder: ", os.path.abspath(folder))
                 for exp in exps:
                     tmp_results = crace.crace_cmdline(f'--read, {exp}, --readlogs_in_plot, 1')
                     df = tmp_results.test.data
@@ -148,23 +169,57 @@ class ReadExperiments(ReadCraceResults):
 
                     self.results = pd.concat([self.results, tmp], ignore_index=True)
                     self.elites[folder_name].append(tmp_results.best_id)
+                print("#")
             print('#------------------------------------------------------------------------------')
 
             l = logging.getLogger('st_log')
-            filehandler = logging.FileHandler(self._directory + "/" + self._file_name + '.log', mode='w')
-            filehandler.setLevel(0)
-            streamhandler = logging.StreamHandler()
-            l.setLevel(logging.DEBUG)
-            l.addHandler(filehandler)
-            l.addHandler(streamhandler)
-
             l.debug(f"# All results:\n{self.results}")
             l.debug(f"\n# All medians: \n{self.results['med'].groupby(self.results['folder']).median().to_string(index=True, header=False)}")
             l.debug(f"\n# All avgs: \n{self.results['avg'].groupby(self.results['folder']).mean().to_string(index=True, header=False)}")
             print('#------------------------------------------------------------------------------')
 
+        elif not self._single and not self._avg:
+            if len(self.exp_names) == 1:
+                self._folder_name = self.exp_names[0] if self.exp_names[0] not in ['.', '..'] else \
+                        os.path.basename(os.path.abspath(self.exp_folders[0]))
+                exps = sorted(subdir for subdir, dirs, files in os.walk(self.exp_folders[0]) \
+                                for dir in dirs if dir == 'race_log' )
+            else:
+                self._folder_name = [x if x != '.' else os.path.basename(os.path.abspath(x))
+                                     for x in self.exp_folders]
+                exps = []
+                exps.extend(sorted(subdir for x in self.exp_folders for subdir, dirs, files in os.walk(x) 
+                                   for dir in dirs if dir == 'race_log'))
+
+            if len(exps) == 2:
+                print("# Checking instances..")
+                # check if necessary to do pair test
+                tmp_results = []
+                for exp in exps:
+                    name = os.path.basename(os.path.abspath(exp))
+                    tmp_results.append(crace.crace_cmdline(f'--read, {exp}, --readlogs_in_plot, 2'))
+                self._pair = self.check_pairwise(tmp_results)
+                if self._pair:
+                    print("# The two provided results are pairwaised.")
+                    print('#------------------------------------------------------------------------------')
+
+            names = [os.path.basename(os.path.abspath(x)) for x in exps]
+            for i, exp in enumerate(exps):
+                name = names[i] if len(set(names)) == len(names) else self._folder_name[i]
+                tmp_results = crace.crace_cmdline(f'--read, {exp}, --readlogs_in_plot, 1')
+                df = tmp_results.test.data
+                experiments = df[df['configuration_id'] == tmp_results.best_id]
+                selected = ['experiment_id', 'configuration_id', 'instance_id', 'quality', 'time']
+                tmp = experiments[selected].dropna()
+                if len(self._folder_name) == 1: tmp['folder'] = self._folder_name
+                else: tmp['folder'] = self._folder_name[i]
+                tmp['exp_name'] = name
+
+                self.results = pd.concat([self.results, tmp], ignore_index=True)
+                self.elites[name] = tmp_results.best_id
+            print('#------------------------------------------------------------------------------')
+
         else:
-            self.exp_names = [os.path.relpath(x, self._directory) for x in self.exp_folders]
             self._tmp_params = {}
             self._all_elites = {}
 
@@ -179,7 +234,7 @@ class ReadExperiments(ReadCraceResults):
                 elif self._num_config != 0:
                     sorted_c = self._all_elites[name].copy()
                     sorted_c.extend([x for x in reversed(list(tmp_results.configurations.all_configurations.keys())) if x not in sorted_c])
-                    print(reversed(list(tmp_results.configurations.all_configurations.keys())))
+
                     experiments = df[df['configuration_id'].isin(sorted_c[:self._num_config])].reset_index(drop=True)
                 else:
                     experiments = df[df['configuration_id'].isin(self._all_elites[name])]
@@ -191,18 +246,41 @@ class ReadExperiments(ReadCraceResults):
                 self.elites[name] = tmp_results.elites
             print('#------------------------------------------------------------------------------')
 
+    def check_pairwise(self, results: list[crace.CraceResults]):
+        """
+        check if the provided two results are pairwised
+        """
+        ins1 = results[0].instances.print_all().kwargs['test'][['instance', 'seed']]
+        ins2 = results[1].instances.print_all().kwargs['test'][['instance', 'seed']]
+
+        set1 = set(zip(ins1['instance'], ins1['seed']))
+        set2 = set(zip(ins2['instance'], ins2['seed']))
+
+        return True if set1==set2 else False
+
     def draw_plot(self):
         """
         draw plot for experiments
         """
         print("# Drawing plot for configurations: \n#")
         try:
-            if not self._single:
+            if not self._single and self._avg:
                 self.de = DrawExps(options=self.options,
                                     data=self.results,
                                     common_dict=self._directory,
                                     elite_ids=self.elites,
-                                    num_config=self._num_config)
+                                    num_config=self._num_config,
+                                    avg=True)
+                getattr(self, self.method)()
+                print('#------------------------------------------------------------------------------')
+            elif not self._single and not self._avg:
+                self.de = DrawExps(options=self.options,
+                                    data=self.results,
+                                    common_dict=self._directory,
+                                    elite_ids=self.elites,
+                                    num_config=self._num_config,
+                                    avg=False,
+                                    paired=self._pair)
                 getattr(self, self.method)()
                 print('#------------------------------------------------------------------------------')
             else:
@@ -220,9 +298,7 @@ class ReadExperiments(ReadCraceResults):
                     getattr(self, self.method)()
                     print('#------------------------------------------------------------------------------')
         except Exception as e:
-            print("ERROR: There was an error when drawing plot for experiments:")
-            print(e)
-            sys.tracebacklimit = 12
+            sys.tracebacklimit = 0
             raise e
 
     def boxplot(self):
@@ -303,9 +379,9 @@ class ReadConfigurations(ReadCraceResults):
                 getattr(self, self.method)()
                 print('#------------------------------------------------------------------------------')
             except Exception as e:
-                print("ERROR: There was an error when drawing plot for configurations:")
+                print("\nERROR: There was an error when drawing plot for configurations:")
                 print(e)
-                sys.tracebacklimit = 12
+                sys.tracebacklimit = 7
                 raise e
 
     def parallelcoord(self):

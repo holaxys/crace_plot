@@ -1,21 +1,25 @@
-import inspect
+from itertools import combinations
 import os
 import re
 import copy
 import math
 import sys
 import textwrap
+import logging
+
 import numpy as np
 import pandas as pd
 import seaborn as sns
-
 import plotly.graph_objects as go
-import plotly.express as px
 import matplotlib.pyplot as plt
 import scikit_posthocs as sp
-from statannotations.Annotator import Annotator
+import statsmodels.api as sm
 
-from crace.errors import OptionError
+from scipy import stats
+from statannotations.Annotator import Annotator
+from statsmodels.formula.api import ols
+
+from crace.errors import OptionError, PlotError
 
 sns.color_palette("vlag", as_cmap=True)
 sns.set_style('white')
@@ -25,22 +29,27 @@ pd.set_option('display.expand_frame_repr', False)
 pd.set_option('display.width', 1000)
 
 class DrawMethods:
-    def __init__(self, options, data, common_dict, exp_name=None, elite_ids=None, parameters=None, exp_folder=None, ) -> None:
+    def __init__(self, options, data, common_dict, exp_name=None, elite_ids=None, parameters=None, exp_folder=None, avg=False) -> None:
 
         self.data = data
         self.exp_names = exp_name
         self.exp_fodler = exp_folder
         if self.exp_fodler:
             self._single = True
+        else:
+            self._single = False
+        self._avg = avg
 
         self.elite_ids = elite_ids
         self.parameters = parameters
 
         self.exec_dir = options.execDir.value
         if options.outDir.value == options.outDir.default:
-            self.out_dir = self.exp_fodler
+            self.out_dir = common_dict
         else:
-            sself.out_dir = common_dict
+            self.out_dir = options.outDir.value
+
+        if exp_folder: self.out_dir = exp_folder
 
         self.title = options.title.value
         self.file_name = options.fileName.value
@@ -52,9 +61,15 @@ class DrawMethods:
             self.catx = options.multiParameters.value.split(',')[0]
             self.caty = options.multiParameters.value.split(',')[1]
 
+        self.confidence = round(options.confidence.value, 2)
+        self.alpha = round(1-options.confidence.value, 2)
+
         self.dpi = options.dpi.value
-        self.showfliers = options.showfliers.value
-        self.stest = options.statisticalTest.value
+        self.sf = options.showfliers.value
+        self.sm = options.showmeans.value
+        self.st = options.statisticalTest.value
+        self.so = options.showOrigins.value
+        self.sa = options.showAnnotators.value
 
         self.set_layout(options.size.value)
 
@@ -102,7 +117,7 @@ class DrawMethods:
         self._fliersize = fliersize
 
         fig, axis = plt.subplots()  # pylint: disable=undefined-variable
-        fig.subplots_adjust(hspace=0.5, wspace=0.4, bottom=0.2)
+        fig.subplots_adjust(hspace=0.3, wspace=0.2, bottom=0.2)
 
 class DrawConfigs(DrawMethods):
     def __init__(self, options, data, common_dict, exp_name, elite_ids, parameters, exp_folder) -> None:
@@ -539,7 +554,10 @@ class DrawConfigs(DrawMethods):
                             name = re.sub(r"(.{25})", "\\1\n", name)
                         if column != 0:
                             fig.set_ylabel('')
-                        fig.set_xlabel('\n'+name, rotation=0)
+                        if self.title:
+                            fig.set_xlabel(self.title)
+                        else:
+                            fig.set_xlabel('')
                     else:
                         ax.axis('off')
 
@@ -553,7 +571,7 @@ class DrawConfigs(DrawMethods):
                 file_name = file_names['plot%s' % i] 
                 save_name = os.path.join(self.out_dir, file_name)
                 
-                plt.suptitle(self.title, size=self._fontSize)
+                # plt.suptitle(self.title, size=self._fontSize)
                 plot.savefig(save_name, dpi=self.dpi)
                 print("# {} has been saved in {}.".format(file_name, self.out_dir))
 
@@ -595,7 +613,7 @@ class DrawConfigs(DrawMethods):
                 file_name = file_names['plot%s' % i]
                 save_name = os.path.join(self.out_dir, file_name)
                 
-                plt.suptitle(self.title, size=self._fontSize)
+                # plt.suptitle(self.title, size=self._fontSize)
                 plot.savefig(save_name, dpi=self.dpi)
                 print("# {} has been saved in {}.".format(file_name, self.out_dir))
 
@@ -669,14 +687,17 @@ class DrawConfigs(DrawMethods):
                     ax = axis[row, column]
                     if idx < page_plots:
                         name = params['params%s' % i][idx]
-                        fig = getattr(sns, method)(data=data_new,
+                        fig = sns.boxplot(data=data_new,
                             x=name, y='slice', width=0.5, fliersize=self._fliersize, linewidth=0.5,
-                            orient='h', palette="vlag", ax=ax)
+                            orient='h', palette="vlag", hue='slice', ax=ax)
                         if len(name) > 25:
                             name = re.sub(r"(.{25})", "\\1\n", name)
                         if column != 0:
                             fig.set_ylabel('')
-                        fig.set_xlabel('\n'+name, rotation=0)
+                        if self.title:
+                            fig.set_xlabel(self.title)
+                        else:
+                            fig.set_xlabel('')
                     else:
                         ax.axis('off')
 
@@ -690,7 +711,7 @@ class DrawConfigs(DrawMethods):
                 file_name = file_names['plot%s' % i]
                 save_name = os.path.join(self.out_dir, file_name)
 
-                plt.suptitle(self.title, size=self._fontSize)
+                # plt.suptitle(self.title, size=self._fontSize)
                 plot.savefig(save_name, dpi=self.dpi)
                 print("# {} has been saved in {}.".format(file_name, self.out_dir))
         else:
@@ -711,7 +732,10 @@ class DrawConfigs(DrawMethods):
                     orient='h', palette="vlag")
                 if len(name) > 25:
                     name = re.sub(r"(.{25})", "\\1\n", name)
-                fig.set_xlabel('\n'+name, rotation=0, fontsize=self._fontSize)
+                if self.title:
+                    fig.set_xlabel(self.title)
+                else:
+                    fig.set_xlabel('')
                 fig.set_ylabel('slice', fontsize=self._fontSize)
                 fig.tick_params(axis='x', labelsize=self._fontSize)
                 fig.tick_params(axis='y', labelsize=self._fontSize)
@@ -720,7 +744,7 @@ class DrawConfigs(DrawMethods):
                 file_name = file_names['plot%s' % i]
                 save_name = os.path.join(self.out_dir, file_name)
 
-                plt.suptitle(self.title, size=self._fontSize)
+                # plt.suptitle(self.title, size=self._fontSize)
                 plot.savefig(save_name, dpi=self.dpi)
                 print("# {} has been saved.".format(file_name))
 
@@ -809,13 +833,16 @@ class DrawConfigs(DrawMethods):
 class DrawExps(DrawMethods):
     # def __init__(self, options, data, common_dict, elite_ids, num_config) -> None:
     #     super().__init__(options=options, data=data, common_dict=common_dict, elite_ids=elite_ids)
-    def __init__(self, options, data, common_dict, elite_ids, num_config, exp_name=None, exp_folder=None) -> None:
+    def __init__(self, options, data, common_dict, elite_ids, num_config, exp_name=None, exp_folder=None, avg=True, paired=False) -> None:
         super().__init__(options=options,
                          data=data,
                          common_dict=common_dict,
                          exp_name=exp_name,
                          elite_ids=elite_ids,
-                         exp_folder=exp_folder)
+                         exp_folder=exp_folder,
+                         avg=avg)
+        self._test = options.test.value
+        self._paired = paired
 
         self.save_name = os.path.join(self.out_dir, self.file_name)
         if isinstance(self.elite_ids, dict):
@@ -828,7 +855,7 @@ class DrawExps(DrawMethods):
         """
         Use data to draw a boxplot for the top5 elite configurations
         """
-        if not self._single:
+        if self._test:
             self.draw_results('boxplot')
         else:
             self.draw_tuning('boxplot')
@@ -837,7 +864,7 @@ class DrawExps(DrawMethods):
         """
         Use data to draw a violin for the top5 elite configurations
         """
-        if not self._single:
+        if self._test:
             self.draw_results('violinplot')
         else:
             self.draw_tuning('violinplot')
@@ -853,94 +880,320 @@ class DrawExps(DrawMethods):
         print("#  ", textwrap.fill(re.sub("[\[\]']",'',str(self.exp_names)), width=70))
 
         print("#\n# The elite configuration ids of each experiment are:")
-        if self.num_config != 1:
-            for i in range(0, num):
-                print("#   {}: {}".format(self.exp_names[i], self.elite_ids[self.exp_names[i]]))
+        ids = re.sub('}','',re.sub('{','',re.sub('\'','',str(self.elite_ids))))
+        print("#   {}".format(ids))
 
-            i = 1
-            column = 1
-            row = 1
-            while i < num:
-                i += 1
-                if num%i == 0 and num/i >= column:
-                    row = int(num/i)
-                    column = i
-            
-            fig, axis = plt.subplots(row, column, sharey=True)
-            plt.subplots_adjust(hspace=0.3)
+        x_lable = 'folder' if len(data['folder'].unique()) > 1 else 'exp_name'
+        y_lable = 'avg' if self._avg else 'quality'
+        fig = getattr(sns, method)(
+            x=x_lable, y=y_lable, data=data, width=0.5,
+            showfliers=self.sf, fliersize=self._fliersize,
+            linewidth=0.5, palette="vlag", hue=x_lable)
 
-            n = 0
-            if row > 1:
-                for i in range(0, row):
-                    for j in range(0, column):
-                        data_exp = data.loc[data['exp_name']==exp_names[n]]
-                        if self.showfliers == True:
-                            fig = getattr(sns, method)(
-                                x='configuration_id', y='avg', data=data_exp, width=0.5, fliersize=self._fliersize, linewidth=0.5, palette="vlag", ax=axis[i,j])
-                        else:
-                            fig = getattr(sns, method)(
-                                x='configuration_id', y='avg', data=data_exp, width=0.5, showfliers=False, linewidth=0.5, palette="vlag", ax=axis[i,j])
-                        print("#   {}: {}\n".format(self.exp_names[n], self.elite_ids[self.exp_names[n]]))
-                        fig.set_xticklabels(self.elite_ids[exp_names[n]], rotation=0, fontsize=self._fontSize-2)
-                        fig.set_xlabel(self.exp_names[n])
-                        if j != 0:
-                            fig.set_ylabel('')
-                        n += 1  
-            elif num > 1:
-                for i in range(0, column):
-                    data_exp = data.loc[data['exp_name']==exp_names[n]]
-                    if self.showfliers == True:
-                        fig = getattr(sns, method)(
-                            x='configuration_id', y='avg', data=data_exp, width=0.5, fliersize=self._fliersize, linewidth=0.5, palette="vlag", ax=axis[i])
-                    else:
-                        fig = getattr(sns, method)(
-                            x='configuration_id', y='avg', data=data_exp, width=0.5, showfliers=False, linewidth=0.5, palette="vlag", ax=axis[i])
-                    fig.set_xticklabels(self.elite_ids[exp_names[n]], rotation=0)
-                    fig.set_xlabel(self.exp_names[n])
-                    if i != 0:
-                            fig.set_ylabel('')
-                    n += 1 
+        if self.st:
+            self.statistic_info(data, self.file_name, fig)
+
+        # show original points
+        if self.so:
+            fig = sns.stripplot(x='folder', y=y_lable, data=data,
+                                color='red', size=2, jitter=True)
+
+        if self.title:
+            fig.set_xlabel(self.title)
+        else:
+            fig.set_xlabel('')
+
+        plot = fig.get_figure()
+        # plt.suptitle(self.title, size=self._fontSize)
+        plot.savefig(self.save_name, dpi=self.dpi)
+        print("#\n# {} has been saved in {}.".format(self.file_name, self.out_dir))
+
+    def draw_tuning(self, method):
+        """
+        draw plot for experiments from the crace tuning part
+        """
+        qualities = copy.deepcopy(self.data[['configuration_id', 'quality']])
+        data = copy.deepcopy(self.data)
+
+        results1 = qualities.groupby(['configuration_id']).mean().T.to_dict()
+        results2 = self.data.groupby(['configuration_id']).count().T.to_dict()
+
+        results_mean = {}
+        results_count = {}
+
+        for id, item in results2.items():
+            results_count[int(id)] = None
+            results_count[int(id)] = item['instance_id']
+
+        # mean based on Nins, when there is a tie on quality
+        for id, item in results1.items():
+            results_mean[int(id)] = None
+            results_mean[int(id)] = item['quality']
+        
+        # Sort elite_ids based on results_count values
+        #   1. num of instances, increase
+        #   2. mean quality, decrease
+        results_count_sorted = {k:v for k, v in sorted(results_count.items(), key=lambda x: (x[1], -results_mean[x[0]]), reverse=False)}
+        elite_ids_sorted = [int(x) for x in results_count_sorted.keys()]
+
+        min_quality = float("inf")
+        best_id = 0
+        pairs = [ k for k,v in results_count_sorted.items() if v==max(results_count_sorted.values())]
+        for id in pairs:
+            if results_mean[int(id)] <= min_quality:
+                min_quality = results_mean[int(id)]
+                best_id = id
+        final_best = self.elite_ids[0]
+
+        elite_labels = []
+        for x in elite_ids_sorted:
+            if x == best_id and x == final_best:
+                x = "±%(num)s" % {"num": x}
+            elif x == best_id:
+                x = "-%(num)s" % {"num": x}
+            elif x == final_best:
+                x = "+%(num)s" % {"num": x}
+            elite_labels.append(x)
+
+        print("#  (number with +: final elite configuration from crace)")
+        print("#  (number with -: configuration having the minimal average value on the most instances)")
+        for x in elite_labels:
+            int_x = int(re.search(r'\d+', x).group()) if not isinstance(x, int) else x
+            print(f"#{x:>12}: ({results_count_sorted[int_x]:>2}, {results_mean[int_x]})", end="\n")
+
+        x_lable = 'configuration_id'
+        y_lable = 'quality'
+
+        fig, axis = plt.subplots()  # pylint: disable=undefined-variable
+        fig.subplots_adjust(hspace=0.3, wspace=0.2, bottom=0.2)
+
+        # draw the plot
+        fig = getattr(sns, method)(
+            x=x_lable, y=y_lable, data=data,
+            order=elite_ids_sorted, hue=x_lable, legend=False,
+            width=0.5, showfliers=self.sf, fliersize=self._fliersize,
+            showmeans=self.sm,
+            meanprops={"marker": "+",
+                        "markeredgecolor": "black",
+                        "markersize": "8"},
+            linewidth=0.5, palette="vlag")
+
+        if max(results_count_sorted.values()) <= 30:
+            fig = sns.stripplot(
+                x=x_lable, y='quality', data=data,
+                color='darkred', size=self._fliersize+1, jitter=True)
+
+        # add p-value for the configurations who have the most instances
+        if self.st and len(pairs) > 1:
+            if (int(final_best) != best_id and 
+                int(final_best) in pairs):
+                pair = (int(best_id), int(final_best))
             else:
-                if self.showfliers == True:
-                    fig = getattr(sns, method)(x='configuration_id', y='avg', data=data, width=0.5, fliersize=self._fliersize, linewidth=0.5, palette="vlag") 
+                pair = (int(elite_ids_sorted[-2]), int(elite_ids_sorted[-1]))
+            pairs_results = data[data['configuration_id'].isin(pair)].copy()
 
-                else:
-                    fig = getattr(sns, method)(x='configuration_id', y='avg', data=data, width=0.5, showfliers=False, linewidth=0.5, palette="vlag") 
-                fig.set_xticklabels(self.elite_ids[exp_names[0]], rotation=0)
-                fig.set_xlabel(self.exp_names[0])
+            pairs_results['configuration_id'] = pairs_results['configuration_id'].astype(int)
+            pairs_results['instance_id'] = pairs_results['instance_id'].astype(int)
+            pairs_results = pairs_results.sort_values(by=['configuration_id', 'instance_id'], ascending=True)
+            pairs_results['configuration_id'] = pairs_results['configuration_id'].astype(int)
+            pairs_results['instance_id'] = pairs_results['instance_id'].astype(int)
 
-        elif self.num_config == 1:
-
-            ids = re.sub('}','',re.sub('{','',re.sub('\'','',str(self.elite_ids))))
-            print("#   {}".format(ids))
-
-            if self.showfliers == True:
-                fig = getattr(sns, method)(x='exp_name', y='avg', data=data)
-            else:
-                fig = getattr(sns, method)(x='exp_name', y='avg', data=data)
-
-            fig.set_xlabel('\n{}'.format(ids))
-
-        if self.stest in (True, "True", "ture"):
-            plog = self.file_name
-
-            # p_values
-            p1 = sp.posthoc_wilcoxon(data, val_col='quality', group_col='exp_name')
+            # p1 = sp.posthoc_wilcoxon(pairs_results, val_col='quality', group_col='configuration_id')
             # p_values after multiple test correction
-            p2 = sp.posthoc_wilcoxon(data, val_col='quality', group_col='exp_name',
+            p2 = sp.posthoc_wilcoxon(pairs_results, val_col='quality', group_col='configuration_id',
                                     p_adjust='fdr_bh')
-            print("Original p_values caculated by 'Wilcoxon':\n", p1)
-            print("New p_values corrected by 'fdr_bh':\n", p2)
+            p2_4 = p2.round(4)
 
-            with open(self.out_dir + "/" + plog + '.log', 'w') as f1:
-                print("Original p_values caculated by 'Wilcoxon':\n", p1, file=f1)
-                print("\nNew p_values corrected by 'fdr_bh':\n", p2, file=f1)
-                print("\n", file=f1)
+            print("#\n# Adjusted p-values of the last two elite configurations:")
+            print(p2_4)
 
+            if self.sa:
+                annotator = Annotator(fig, pairs=[pair], data=data, order=elite_ids_sorted, x='configuration_id', y='quality')
+                annotator.configure(test='Wilcoxon', text_format='simple', comparisons_correction='fdr_bh',
+                                    show_test_name=False, line_width=1, fontsize=self._fontSize)
+                annotator.apply_and_annotate()
+
+        # show original points
+        if self.so:
+            fig = sns.stripplot(x='folder', y=y_lable, data=data,
+                                color='red', size=2, jitter=True)
+
+        fig.set_xticks(range(len(elite_labels)))
+
+        if len(elite_labels) > 15:
+            fig.set_xticklabels(elite_labels, rotation=90)
+        else:
+            fig.set_xticklabels(elite_labels, rotation=0)
+
+        if self.title:
+            fig.set_xlabel(self.title)
+        else:
+            fig.set_xlabel('')
+
+        results_count = dict(sorted(results_count.items(), key=lambda x:x[0]))
+
+        # add instance numbers
+        _, ymax = axis.get_ylim()
+        plt.text(x=-0.5,y=ymax,s="ins_num",ha='right',va='top',size=self._fontSize,color='blue')
+        i=0
+        for x in results_count_sorted.values():
+            plt.text(x=i, y=ymax,s=x,ha='center',va='top',size=self._fontSize,color='blue')
+            i+=1
+
+        plot = fig.get_figure()
+        plot.savefig(self.save_name, dpi=self.dpi)
+        print("#\n# {} has been saved in {}.".format(self.file_name, self.out_dir))
+
+    def statistic_info(self, data, plog, fig):
+        ############################# CHECK RESULTS #############################
+        #                           Shapiro-Wilk Test                           #
+        #                                 LEVENE                                #
+        #                                 ANOVA                                 #
+        #                         Kruskal-Wallis H Test                         #
+        #########################################################################
+        l = logging.getLogger('st_log')
+        print('\n', data)
+
+        x_lable = 'folder' if len(data['folder'].unique()) > 1 else 'exp_name'
+        y_lable = 'avg' if self._avg else 'quality'
+        # avg for each folder
+        data_groups = [data[y_lable][data[x_lable] == x] for x in data[x_lable].unique()]
+
+        # Shapiro-Wilk Test
+        # H0 hypothesis: normality (正态分布)
+        shapiro_string = ''
+        stat_s = p_s = []
+        for x in data[x_lable].unique():
+            data_group = data[data[x_lable] == x][y_lable]
+            ss, ps = stats.shapiro(data_group)
+            stat_s.append(ss)
+            p_s.append(ps)
+            # print('Shapiro-Wilk Test for folder {}, Statistic: {:.4f}, p-value: {:.4f}'.format(x, stat_s, p_s))
+            shapiro_string += 'Shapiro-Wilk Test for folder {}, Statistic: {:.4f}, p-value: {:.4f}\n'.format(x, ss, ps)
+        l.debug(f'\nShapiro-Wilk Test - H0 hypothesis: normality ({self.alpha})\n{shapiro_string}')
+
+        # do levene
+        # H0 hypothesis: homogeneity of variance (方差齐性)
+        stat_l, p_l = stats.levene(*data_groups)
+        l.debug(f'\nLevene’s Test - H0 hypothesis: homogeneity of variance ({self.alpha})\n' \
+                'stat: {:.4f}, p-value: {:.4f}\n'.format(stat_l, p_l))
+
+        # check the results from Shapiro-Wilk Test and levene
+        KW_test = ANOVA_test = False
+        if p_l < self.alpha or any(x < self.alpha for x in p_s):
+            KW_test = True
+        else:
+            ANOVA_test = True
+
+        if self._paired:
+            grouped = data.groupby(x_lable)
+            group_keys = list(grouped.groups.keys())
+
+            group1 = grouped.get_group(group_keys[0])
+            group2 = grouped.get_group(group_keys[1])
+
+            merged = pd.merge(
+                group1[["instance_id", "quality"]],
+                group2[["instance_id", "quality"]],
+                on="instance_id",
+                suffixes=("_group1", "_group2")
+            )
+
+            quality_group1 = merged["quality_group1"]
+            quality_group2 = merged["quality_group2"]
+
+            stat_p, p_p = stats.wilcoxon(quality_group1, quality_group2)
+
+            l.debug(f'\nWilcoxon pairwise test - H0 hypothesis: homogeneity of variance ({self.alpha})\n' \
+                'stat: {:.4f}, p-value: {:.4f}\n'.format(stat_p, p_p))
+            if self.sa:
+                # xticks = fig.get_xticks()
+                # yticks = fig.get_yticks()
+                # print(xticks, yticks)
+                # fig.annotate(    
+                #     f"p = {p_p:.3f}",
+                #     xy=(np.pi / 2, 1), xytext=((xticks[0]+xticks[1])/2, (yticks[0]+yticks[1]/2)),
+                #     arrowprops=dict(facecolor="black", arrowstyle="->"),
+                #     fontsize=12, color='black')
+
+                ymin, ymax = fig.get_ylim()
+                plt.text(x=0.5, y=ymax,
+                         s=f"wilcoxon pair-test: p = {p_p:.3f}",
+                         ha='center',va='top',
+                         size=self._fontSize)
+            return
+
+        if ANOVA_test:
+            # simulate ANOVA 
+            # H0 hypothesis: same mean values
+            model = ols(f'{y_lable} ~ C({x_lable})', data=data).fit()
+            anova_results = sm.stats.anova_lm(model, typ=2)  # Type 2 ANOVA DataFrame
+            l.debug(f'\nANOVA_results - H0 hypothesis: all folders have the same mean values\n{anova_results}')
+
+            ############################# POSTHOC TEST ##############################
+            #                           posthoc_wilcoxon                            #
+            #########################################################################
+            annot_test = 'Wilcoxon'
+            try:
+                # Wilcoxon signed-rank test
+                p1 = sp.posthoc_wilcoxon(data, val_col=y_lable, group_col=x_lable, zero_method='zsplit')
+                # p_values after multiple test correction
+                p2 = sp.posthoc_wilcoxon(data, val_col=y_lable, group_col=x_lable,
+                                        zero_method='zsplit', p_adjust='fdr_bh')
+                p2_4 = p2.round(4)
+            except Exception as e:
+                sys.tracebacklimit = 0
+                raise PlotError("posthoc_wilcoxon was failed.")
+
+            l.debug(f"\n############################# Wilcoxon Signed-rank Test ##############################")
+            l.debug(f"\nOriginal p_values caculated by 'Wilcoxon':\n{p1}")
+            l.debug(f"\nNew p_values corrected by 'fdr_bh':\n{p2}")
+            l.debug(f"\nNew rounded p_values:\n{p2_4}")
+
+        if KW_test:
+            # do Kruskal-Wallis H
+            # H0 hypothesis: same medians
+            stat_k, p_k = stats.kruskal(*data_groups)
+            l.debug('Kruskal-Wallis Test - H0 hypothesis: all folders have the same medians ({self.alpha})\n' \
+                    'Statistic: {:.4f}, p-value: {:.4f}'.format(stat_k, p_k))
+
+            ############################# POSTHOC TEST ##############################
+            #                             posthoc_dunn                              #
+            #                          posthoc_mannwhitney                          #
+            #########################################################################
+
+            # # # Dunn:  
+            # p1 = sp.posthoc_dunn(data, val_col=y_lable, group_col=x_lable)
+            # # p_values after multiple test correction
+            # p2 = sp.posthoc_dunn(data, val_col=y_lable, group_col=x_lable,
+            #                         p_adjust='fdr_bh')
+            # p2_4 = p2.round(4)
+
+            # l.debug(f"\nOriginal p_values caculated by 'dunn':\n{p1}")
+            # l.debug(f"\nNew p_values corrected by 'fdr_bh':\n{p2}")
+            # l.debug(f"\nNew rounded p_values:\n{p2_4}")
+
+            annot_test = 'Mann-Whitney'
+            try:
+                # Mann-Whitney rank-sum test
+                p1 = sp.posthoc_mannwhitney(data, val_col=y_lable, group_col=x_lable)
+                # p_values after multiple test correction
+                p2 = sp.posthoc_mannwhitney(data, val_col=y_lable, group_col=x_lable,
+                                        p_adjust='fdr_bh')
+                p2_4 = p2.round(4)
+            except Exception as e:
+                sys.tracebacklimit = 0
+                raise PlotError("posthoc_mannwhitney was failed.")
+            l.debug(f"\nOriginal p_values caculated by 'mannwhitney (Wilcoxon rank-sum test)':\n{p1}")
+            l.debug(f"\nNew p_values corrected by 'fdr_bh':\n{p2}")
+            l.debug(f"\nNew rounded p_values:\n{p2_4}")
+
+        ############################# ANNOATE ##############################
+        if self.sa:
             order = []
             pairs = []
             p_values = []
-            for x in data['exp_name'].unique():
+            for x in data[x_lable].unique():
                 order.append(x)
             i = 0
             for x in order[:-1]:
@@ -950,109 +1203,18 @@ class DrawExps(DrawMethods):
                     p_values.append(p2.loc[x, y])
 
             annotator = Annotator(fig, pairs=pairs, order=order,
-                                data=data, x='exp_name', y='avg')
-            annotator.configure(test='Wilcoxon', text_format='star', comparisons_correction='fdr_bh',
-                                line_width=0.5, fontsize=self._fontSize-2)
+                                data=data, x=x_lable, y=y_lable)
+            annotator.configure(test=annot_test, text_format='star', comparisons_correction='fdr_bh',
+                            line_width=.3, fontsize=self._fontSize-2)
             # annotator.apply_and_annotate()
 
-            with open(self.out_dir + "/" + plog + '.log', 'a') as f1:
+            with open(plog + '.log', 'a') as f1:
                 original_stdout = sys.stdout
                 sys.stdout = f1
-
                 try:
                     annotator.apply_and_annotate()
+                except ValueError as e:
+                    sys.tracebacklimit = 0
+                    raise PlotError(f"{annot_test} in Annotator was failed.")
                 finally:
                     sys.stdout = original_stdout
-
-        
-        plot = fig.get_figure()
-        plt.suptitle(self.title, size=self._fontSize)
-        plot.savefig(self.save_name, dpi=self.dpi)
-        print("#\n# {} has been saved in {}.".format(self.file_name, self.out_dir))
-
-    def draw_tuning(self, method):
-        """
-        draw plot for experiments from the crace tuning part
-        """
-        print("#\n# The configurations selected for the tuning experiments:")
-        configs = self.data['configuration_id'].unique().tolist()
-        print("#  ", textwrap.fill(re.sub("[\[\]']",'',str(configs)), width=70))
-
-        qualities = copy.deepcopy(self.data[['configuration_id', 'quality']])
-
-        results1 = qualities.groupby(['configuration_id']).mean().T.to_dict()
-        results2 = self.data.groupby(['configuration_id']).count().T.to_dict()
-
-        results_mean = {}
-        min_quality = float("inf")
-        best_id = 0
-        for id, item in results1.items():
-            results_mean[int(id)] = None
-            results_mean[int(id)] = item['quality']
-            if item['quality'] < min_quality:
-                min_quality = item['quality']
-                best_id = id
-        results_count = {}
-        for id, item in results2.items():
-            results_count[int(id)] = None
-            results_count[int(id)] = item['instance_id']
-
-        final_best = self.elite_ids[0]
-        
-        # Sort elite_ids based on results_count values
-        #   1. num of instances, increase
-        #   2. mean quality, decrease
-        results_count_sorted = {k:v for k, v in sorted(results_count.items(), key=lambda x: (x[1], -results_mean[x[0]]), reverse=False)}
-        elite_ids_sorted = [str(x) for x in results_count_sorted.keys()]
-
-        elite_labels = []
-        key_name = "-%(num)s-" % {"num": int(best_id)}
-        for x in elite_ids_sorted:
-            if int(x) == int(best_id):
-                x = key_name
-            elif int(x) == final_best:
-                if int(x) == int(best_id):
-                    x = "-%(num)s-" % {"num": x}
-                x = "*%(num)s*" % {"num": x}
-            elite_labels.append(x)
-
-        print("#\n# Elite configurations from the Crace results you provided that will be analysed here :")
-        print("#  ", textwrap.fill(re.sub("[\[\]']",'',str(elite_labels)), width=70))
-
-        # draw the plot
-        if self.showfliers == True:
-            fig = getattr(sns, method)(x='configuration_id', y='quality', data=self.data,
-                              order=elite_ids_sorted,
-                              hue='configuration_id', legend=False,
-                              width=0.5, showfliers=True, fliersize=2,
-                              linewidth=0.5, palette="vlag")
-        else:
-            fig = getattr(sns, method)(x='configuration_id', y='quality', data=self.data,
-                              order=elite_ids_sorted,
-                              hue='configuration_id', legend=False,
-                              width=0.5, showfliers=False,
-                              linewidth=0.5, palette="vlag")
-        fig.set_xticks(range(len(elite_labels)))
-        if len(elite_labels) > 15:
-            fig.set_xticklabels(elite_labels, rotation=90)
-        else:
-            fig.set_xticklabels(elite_labels, rotation=0)
-        if self.title:
-            fig.set_xlabel(self.title)
-        else:
-            fig.set_xlabel(exp_names)
-
-        results_count = dict(sorted(results_count.items(), key=lambda x:x[0]))
-
-        # add instance numbers
-        results3 = self.data.max().T.to_dict()
-        max_v = results3['quality'] * 1.0005
-        plt.text(x=-0.5,y=max_v,s="ins_num",ha='right',size=self._fontSize,color='blue')
-        i=0
-        for x in results_count_sorted.values():
-            plt.text(x=i, y=max_v,s=x,ha='center',size=self._fontSize,color='blue')
-            i+=1
-
-        plot = fig.get_figure()
-        plot.savefig(self.save_name, dpi=self.dpi)
-        print("#\n# {} has been saved in {}.".format(self.file_name, self.out_dir))

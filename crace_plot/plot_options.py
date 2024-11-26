@@ -184,9 +184,6 @@ class PlotOptions:
             raise CE.ParameterValueError("Option 'execDir' must be provided when 'drawMethod' is not None!")
         elif self.drawMethod.value is None:
             raise CE.ParameterValueError("Option 'drawMethod' must be provided!")
-        elif self.title.value is None:        
-            path_name1 = os.path.commonpath(folders)
-            self.title.value = self.drawMethod.value+': '+path_name1
 
         if self.drawMethod.value in "(pairplot)" and (self.keyParameter.value is None
             or len(self.keyParameter.value.split(',')) > 1):
@@ -262,7 +259,7 @@ class PlotOptions:
         for o in self.options:
             if self.get_option(o).critical > 1:
                 continue
-            if self.get_option(o).type == "e" and self.get_option(o).name not in ['training', 'test']:
+            if self.get_option(o).type == "e" and self.get_option(o).name in ['help', 'man', 'version']:
                 continue
             if self.get_option(o).value in [None, 'none', 'None']:
                 continue
