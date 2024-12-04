@@ -11,9 +11,14 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 import plotly.graph_objects as go
+import ipywidgets as widgets
+from IPython.display import display
 import matplotlib.pyplot as plt
 import scikit_posthocs as sp
 import statsmodels.api as sm
+import plotly.io as pio
+
+pd.set_option('future.no_silent_downcasting', True)
 
 from scipy import stats
 from statannotations.Annotator import Annotator
@@ -29,7 +34,7 @@ pd.set_option('display.expand_frame_repr', False)
 pd.set_option('display.width', 1000)
 
 class DrawMethods:
-    def __init__(self, options, data, common_dict, exp_name=None, elite_ids=None, parameters=None, exp_folder=None, avg=False) -> None:
+    def __init__(self, options, data, common_dict=None, exp_name=None, elite_ids=None, parameters=None, exp_folder=None, avg=False) -> None:
 
         self.data = data
         self.exp_names = exp_name
@@ -57,9 +62,7 @@ class DrawMethods:
 
         self.key_param = options.keyParameter.value
         self.multi_params = options.multiParameters.value
-        if self.multi_params is not None and options.drawMethod.value == 'parallelcat':
-            self.catx = options.multiParameters.value.split(',')[0]
-            self.caty = options.multiParameters.value.split(',')[1]
+        self.slice = options.slice.value
 
         self.confidence = round(options.confidence.value, 2)
         self.alpha = round(1-options.confidence.value, 2)
@@ -120,10 +123,14 @@ class DrawMethods:
         fig.subplots_adjust(hspace=0.3, wspace=0.2, bottom=0.2)
 
 class DrawConfigs(DrawMethods):
-    def __init__(self, options, data, common_dict, exp_name, elite_ids, parameters, exp_folder) -> None:
-        super().__init__(options, data, common_dict, exp_name, elite_ids, parameters, exp_folder)
-
-        if 'slice' in data.columns: self.slice = True
+    def __init__(self, options, data, exp_name, elite_ids, parameters, exp_folder) -> None:
+        super().__init__(
+            options=options,
+            data=data,
+            exp_name=exp_name,
+            elite_ids=elite_ids,
+            parameters=parameters,
+            exp_folder=exp_folder)
 
     def draw_parallelcoord(self):
         """
@@ -133,6 +140,9 @@ class DrawConfigs(DrawMethods):
         num = len(self.data)
 
         data_new = self.data.copy()
+
+        print("#\n# The original crace results:")
+        print(data_new)
 
         if self.key_param not in ('null', None):
             keyParam = self.key_param
@@ -154,29 +164,34 @@ class DrawConfigs(DrawMethods):
                     map_dic[name][a] = i
                     new_parameters[name]['domain'].append(i)
                     i += 1
-                data_new[name] = self.data[name].map(map_dic[name])
+                data_new[name] = data_new[name].map(map_dic[name])
 
+        print("#\n# Replacing NaN values..")
+        max_l = max([len(x) for x in new_parameters.keys()])
         col1 = data_new.count() == 0
         for i in range(len(col1)):
             name = col1.index[i]
-            per = list(self.data[name]).count('null')/float(num)
-            if per > 0:
-                if new_parameters[name]['type'] != 'c':
-                    old = copy.deepcopy(new_parameters[name]['domain'])
-                    new_parameters[name]['domain'][0] = old[0]-1
-                    print("! WARNING: 'null' values in {} has been replaced by {}.".format(name, old[0]-1))
-                    data_new[name].replace('null', old[0]-1, inplace=True)
-                else:
-                    old = copy.deepcopy(self.parameters[name]['domain'])
-                    new_parameters[name]['domain'].append(len(old))
-                    self.parameters[name]['domain'].append('null')
-                    print("! WARNING: {} has 'null' values.".format(name))
-            if col1.iloc[i]:
-                print("\n! WARNING: all values in {} are NaN, it will be deleted for the plot!".format(name) )
-                new_parameters.pop(col1.index[i])
+            if name in new_parameters.keys():
+                per = data_new[name].isna().sum() / float(num)
+                if per > 0:
+                    if new_parameters[name]['type'] != 'c':
+                        old = copy.deepcopy(new_parameters[name]['domain'])
+                        new_parameters[name]['domain'][1] = old[1]+1
+                        # print("! WARNING: 'null/NaN' values in {} has been replaced by {}.".format(name, old[0]-1))
+                        data_new[name] = data_new[name].replace('null', old[1]+1)
+                        data_new[name] = data_new[name].fillna(old[1]+1)
+                    else:
+                        old = copy.deepcopy(new_parameters[name]['domain'])
+                        new_parameters[name]['domain'].append(len(old))
+                        data_new[name] = data_new[name].fillna(len(old))
+                        # print("! WARNING: {} has 'null/NaN' values.".format(name))
+                    print("#   %*s: old domain %s -> new domain %s " % (max_l, name, old, new_parameters[name]['domain']))
+                if col1.iloc[i]:
+                    print("! WARNING: all values in {} are NaN, it will be deleted for the plot!".format(name) )
+                    new_parameters.pop(col1.index[i])
+            else:
+                continue
 
-        print("#\n# The new self.parameters:")
-        print("# ", ', '.join(list(new_parameters.keys())))
         print("#\n# The new Crace results:")
         print(data_new)
 
@@ -223,26 +238,92 @@ class DrawConfigs(DrawMethods):
             dimensions = list([line for line in plot_dict])
         ))
         fig.show()
+        fig.write_image(self.save_name+'.png', width=2560, height=1440)
+        print("# {} has been saved in {}.".format(self.file_name+'.png', self.out_dir))
 
     def draw_parallelcat(self):
+        """
+        Use data to draw a parallel categorical plot for the provided Crace results
+        """
+        num = len(self.data)
+
+        data_new = self.data.copy()
+
+        print("#\n# The original crace results:")
+        print(data_new)
+
+        new_parameters = copy.deepcopy(self.parameters)
+
+        selected = ['slice']
+        if len(self.multi_params) > 0:
+            selected.extend(self.multi_params)
+        else:
+            for x in new_parameters:
+                if new_parameters[x]['type'] == 'c':
+                    selected.append(x)
+
+        print("#\n# Elite configurations from the Crace results you provided that will be analysed here:\n# ",
+              ', '.join([str(x) for x in self.elite_ids]))
+
+        # Create dimensions
+        dimensions = []
+        for x in selected:
+            if x == 'slice':
+                dimensions.append(go.parcats.Dimension(
+                    values=data_new[x],
+                    label=x,
+                    categoryorder='category descending',
+                ))
+            else:
+                dimensions.append(go.parcats.Dimension(
+                    values=data_new[x],
+                    label=x,
+                ))
+
+        # Create parcats trace
+        color = data_new['slice']
+        colorscale = [
+            [0.0, '#009392'],
+            [0.5, '#F1EAC8'],
+            [1.0, '#D0587E']]
+
+        fig = go.Figure(data = [go.Parcats(dimensions=dimensions,
+                line={'color': color, 'colorscale': colorscale},
+                hoveron='color', hoverinfo='count+probability',
+                labelfont={'size': 18},
+                tickfont={'size': 16},
+                arrangement='freeform')])
+
+        fig.show()
+        fig.write_image(self.save_name+'.png', width=2560, height=1440)
+        print("# {} has been saved in {}.".format(self.file_name+'.png', self.out_dir))
+
+    def draw_parallelcat_old(self):
         """
         Use data to draw a parallel categorical plot for the provided Crace results
         """
 
         num = len(self.data)
 
-        self.parameters['configuration_id'] = {}
-        self.parameters['configuration_id']['type'] = 'i'
-        self.parameters['configuration_id']['domain'] = [int(self.data['configuration_id'].min()), int(self.data['configuration_id'].max())]
-        keyParam = 'configuration_id'
+        data_new = self.data.copy()
+
+        print("#\n# The original crace results:")
+        print(data_new)
+
+        if len(self.multi_params) == 0:
+            catx = '.ID'
+            caty = 'slice'
+        else:
+            catx = self.multi_params[0]
+            caty = self.multi_params[1]
 
         new_parameters = []
         new_parameters = copy.deepcopy(self.parameters)
 
-        col1 = self.data.count() == 0
+        col1 = data_new.count() == 0
         for i in range(len(col1)):
             name = col1.index[i]
-            per = list(self.data[name]).count('null')/float(num)
+            per = list(data_new[name]).count('null')/float(num)
             if col1.iloc[i]:
                 print("\n! WARNING: all values in {} are NaN, it will be deleted for the plot!".format(name) )
                 new_parameters.pop(col1.index[i])
@@ -251,20 +332,18 @@ class DrawConfigs(DrawMethods):
                     old = copy.deepcopy(new_parameters[name]['domain'])
                     new_parameters[name]['domain'][0] = old[0]-1
                     print("! WARNING: 'null' values in {} has been replaced by {}.".format(name, old[0]-1))
-                    self.data[name].replace('null', old[0]-1, inplace=True)
+                    data_new[name].replace('null', old[0]-1, inplace=True)
                 else:
                     old = copy.deepcopy(self.parameters[name]['domain'])
                     new_parameters[name]['domain'].append(len(old))
                     self.parameters[name]['domain'].append('null')
                     print("! WARNING: {} has 'null' values.".format(name))
 
+        print("#\n# The new Crace results:")
+        print(data_new)
 
-        print("#\n# The new self.parameters:")
-        print(new_parameters.keys())
-
-        print("#\n# Elite configurations from the Crace results you provided that will be analysed here :")
-        for a in self.elite_ids.keys():
-            print("#   {}: {}".format(a, self.elite_ids[a]))
+        print("#\n# Elite configurations from the Crace results you provided that will be analysed here:\n# ",
+              ', '.join([str(x) for x in self.elite_ids]))
 
         plot_dict = []
         each_dict = {}
@@ -272,46 +351,60 @@ class DrawConfigs(DrawMethods):
             if new_parameters[name]['type'] == 'c':
                 each_dict = dict(
                     label = name, 
-                    values = self.data[name]
+                    values = data_new[name]
                 )
                 plot_dict.append(each_dict)
-        
+
+        cmin = -0.5
+        cmax = 2.5
+
         color = np.zeros(len(plot_dict), dtype='uint8')
-        colorscale = [[0, 'gray'], [1, 'firebrick']]
-        
+        colorscale = [[0, 'gray'], [0.33, 'gray'],
+                    [0.33, 'firebrick'], [0.66, 'firebrick'],
+                    [0.66, 'blue'], [1.0, 'blue']]
+
+        # FIXME: cannot update the trace color
         # Build figure as FigureWidget
         fig = go.FigureWidget(data=[
         go.Scatter(
-            x = self.data[self.catx],
-            y = self.data[self.caty],
-            marker={'color': 'gray'},
+            x = data_new[catx],
+            y = data_new[caty],
+            marker={'color': color, 'cmin': cmin, 'cmax': cmax,
+                    'colorscale': colorscale, 'showscale': True,
+                    'colorbar': {'tickvals': [0, 1, 2], 'ticktext': ['None', 'Red', 'Green']}},
             mode='markers',
-            selected={'marker': {'color': 'firebrick'}},
-            unselected={'marker': {'opacity': 0.3}}
         ), 
         go.Parcats(
                 domain={'y': [0, 0.4]}, 
                 dimensions=list([line for line in plot_dict]),
-                line={'colorscale': colorscale, 'cmin': 0, 'cmax': 1, 'color': color, 'shape': 'hspline'}),
+                line={'colorscale': colorscale, 'cmin': cmin, 'cmax': cmax,
+                      'color': color, 'shape': 'hspline'}),
         ])
 
         fig.update_layout(
             height=1000, 
-            xaxis={'title': self.catx},
-            yaxis={'title': self.caty, 'domain': [0.6, 1]},
+            xaxis={'title': catx},
+            yaxis={'title': caty, 'domain': [0.6, 1]},
             dragmode='lasso', 
-            hovermode='closest',
-            overwrite=True)
+            hovermode='closest',)
+
+        # Build color selection widget
+        color_toggle = widgets.ToggleButtons(
+            options=['None', 'Red', 'Blue'],
+            index=1, description='Brush Color:', disabled=False)
 
         # Update color callback
         def update_color(trace, points, state):
-            # Update scatter selection
-            fig.data[0].selectedpoints = points.point_inds
+            # Compute new color array
+            new_color = np.array(fig.data[0].marker.color)
+            new_color[points.point_inds] = color_toggle.index
 
-            # Update parcats colors
-            new_color = color
-            new_color[points.point_inds] = 1
-            fig.data[1].line.color = new_color
+            with fig.batch_update():
+                # Update scatter color
+                fig.data[0].marker.color = new_color
+
+                # Update parcats colors
+                fig.data[1].line.color = new_color
 
         # Register callback on scatter selection...
         fig.data[0].on_selection(update_color)
@@ -330,105 +423,131 @@ class DrawConfigs(DrawMethods):
         data = copy.deepcopy(self.data)
         new_parameters = copy.deepcopy(self.parameters)
 
+        print("#\n# The original crace results:")
+        print(data)
+
+        print("#\n# Replacing NaN values..")
+        max_l = max([len(x) for x in new_parameters.keys()])
         col1 = data.count() == 0
         for i in range(len(col1)):
             name = col1.index[i]
-            per = list(data[name]).count('null')/float(num)
-            if col1.iloc[i]:
-                print("\n! WARNING: all values in {} are NaN, it will be deleted for the plot!".format(name) )
-                new_parameters.pop(col1.index[i])
-            if per > 0:
-                if new_parameters[name]['type'] != 'c':
-                    old = copy.deepcopy(new_parameters[name]['domain'])
-                    new_parameters[name]['domain'][0] = old[0]-1
-                    print("! WARNING: 'null' values in {} has been replaced by {}.".format(name, old[0]-1))
-                    data[name].replace('null', old[0]-1, inplace=True)
-                else:
-                    old = copy.deepcopy(self.parameters[name]['domain'])
-                    new_parameters[name]['domain'].append(len(old))
-                    self.parameters[name]['domain'].append('null')
-                    print("! WARNING: {} has 'null' values.".format(name))
+            if name in new_parameters.keys():
+                per = data[name].isna().sum() / float(num)
+                if per > 0:
+                    if new_parameters[name]['type'] != 'c':
+                        old = copy.deepcopy(new_parameters[name]['domain'])
+                        new_parameters[name]['domain'][1] = old[1]+1
+                        # print("! WARNING: 'null/NaN' values in {} has been replaced by {}.".format(name, old[0]-1))
+                        data[name] = data[name].replace('null', old[1]+1)
+                        data[name] = data[name].fillna(old[1]+1)
+                    else:
+                        old = copy.deepcopy(new_parameters[name]['domain'])
+                        new_parameters[name]['domain'].append(str(len(old)))
+                        data[name] = data[name].replace('None', str(len(old)))
+                        data[name] = data[name].fillna(str(len(old)))
+                        # print("! WARNING: {} has 'null/NaN' values.".format(name))
+                    print("#   %*s: old domain %s -> new domain %s " % (max_l, name, old, new_parameters[name]['domain']))
+                if col1.iloc[i]:
+                    print("! WARNING: all values in {} are NaN, it will be deleted for the plot!".format(name) )
+                    new_parameters.pop(col1.index[i])
+            else:
+                continue
 
+        print("#\n# The new Crace results:")
+        print(data)
 
         subgroup = {}
         for name in new_parameters.keys():
+            if name in [".ID", ".PARENT", "slice"]: continue
             subgroup[name] = {}
             subgroup[name]['names'] = []
             subgroup[name]['props'] = []
             if new_parameters[name]['type'] != 'c':
                 data[name] = pd.to_numeric(data[name])
-                left = self.parameters[name]['domain'][0]
-                right = self.parameters[name]['domain'][1]
-                tmp = (left+right)/3
+                left = min(new_parameters[name]['domain'])
+                right1 = max(self.parameters[name]['domain'])
+                right2 = max(new_parameters[name]['domain'])
+                tmp = (left+right1)/3
                 sub1 = '[{:.2f}, {:.2f}]'.format(left, tmp)
                 sub2 = '[{:.2f}, {:.2f}]'.format(tmp, 2*tmp)
-                sub3 = '[{:.2f}, {:.2f}]'.format(2*tmp, right)
+                sub3 = '[{:.2f}, {:.2f}]'.format(2*tmp, right1)
 
                 subgroup[name]['names'].append(sub1)
                 s_bool = ((data[name] >= left) & (data[name] < tmp))
-                subgroup[name]['props'].append(s_bool.sum())
+                subgroup[name]['props'].append(int(s_bool.sum()))
 
                 subgroup[name]['names'].append(sub2)
                 s_bool = ((data[name] >= tmp) & (data[name] < 2*tmp))
-                subgroup[name]['props'].append(s_bool.sum())
+                subgroup[name]['props'].append(int(s_bool.sum()))
 
                 subgroup[name]['names'].append(sub3)
-                s_bool = ((data[name] >= 2*tmp) & (data[name] <= right))
-                subgroup[name]['props'].append(s_bool.sum())
+                s_bool = ((data[name] >= 2*tmp) & (data[name] <= right1))
+                subgroup[name]['props'].append(int(s_bool.sum()))
 
-                if sum(subgroup[name]['props']) < len(data[name]):
+                if right1 != right2:
                     subgroup[name]['names'].append('null')
-                    s_bool = (data[name] < left)
-                    subgroup[name]['props'].append(s_bool.sum())
+                    s_bool = (data[name] == right2)
+                    subgroup[name]['props'].append(int(s_bool.sum()))
                 
             else:
-                for x in self.parameters[name]['domain']:
-                    subgroup[name]['names'].append(x)
+                for x in new_parameters[name]['domain']:
+                    if x not in self.parameters[name]['domain']:
+                        subgroup[name]['names'].append('null')
+                    else:
+                        subgroup[name]['names'].append(x)
                     s_bool = data[name] == x
-                    subgroup[name]['props'].append(s_bool.sum())
+                    subgroup[name]['props'].append(int(s_bool.sum()))
 
         num = len(new_parameters.keys())
         labels = [self.title]
         values = [0]
-        parents = [""]
+        parents = [None]
+        depths = [0]
         for name in new_parameters.keys():
+            if name in [".ID", ".PARENT", "slice"]: continue
             i = 0
             labels.append(name)
-            values.append(self.count_values(self.data[name]))
+            values.append(self.count_values(data[name]))
             parents.append(self.title)
-            for label in subgroup[name]['names']:
+            depths.append(1)
+            for i, label in enumerate(subgroup[name]['names']):
                 labels.append(label)
                 values.append(subgroup[name]['props'][i])
                 parents.append(name)
-                i += 1
-        # print(values, '\n')
-        # print(labels, '\n')
-        # print(parents)
+                depths.append(2)
 
         fig = go.Figure(go.Sunburst(
-            labels = labels,
-            parents = parents,
-            values = values
+            labels=labels,
+            parents=parents,
+            values=values,
+            branchvalues="total",
+            sort=False,
+            insidetextorientation='radial',
+            textinfo= 'none',
+            texttemplate=['%{label}, %{percentEntry:.2%}' if d == 2 else '%{label}' for d in depths],
+            maxdepth=-1,
+            visible=True,
         ))
-        fig.update_layout(margin = dict(t=0, l=0, r=0, b=0))
+        fig.update_layout(margin=dict(t=0, l=0, r=0, b=0),
+                          uniformtext=dict(minsize=12, mode='show'))
 
         fig.show()
+        fig.write_html(self.save_name+'.html', full_html=True, include_plotlyjs='cdn')
+        print("# {} has been saved in {}.".format(self.file_name+'.html', self.out_dir))
 
     def draw_pairplot(self):
         """
         Use data to draw scatter matrix plot
         """
 
-        # sns.set(style="ticks", color_codes=True)
-
         if self.parameters[self.key_param]['type'] != 'c':
-            raise OptionError("!! keyParam {} must be categorical.".format(self.key_param))
+            raise OptionError("Key parameter {} must be categorical for drawing pairplot.".format(self.key_param))
 
         dimensions = []
-        if self.multi_params is not None:
-            for x in self.multi_params.split(','):
+        if len(self.multi_params) != 0:
+            for x in self.multi_params:
                 if self.parameters[x]['type'] == 'c':
-                    raise OptionError("!! keyParam {} must be numeric.".format(x))
+                    raise OptionError("Selected parameters {} must be numeric.".format(x))
                 else:
                     dimensions.append(x)
         else:
@@ -439,38 +558,31 @@ class DrawConfigs(DrawMethods):
         for name in self.parameters.keys():
             per = list(self.data[name]).count('null')/len(self.data)
             if per == float(1):
-                print("\n! WARNING: all values in {} are 'null', it will be deleted for the plot!".format(name))
-                dimensions.pop(dimensions.index(name))
+                raise PlotError("All values in {} are 'null', it will be deleted for the plot!".format(name))
             elif per > 0:
                 data_new[name].replace('null', np.nan, inplace=True)
 
         col = data_new.count() == 0
         for i in range(len(col)):
-            if col[i] and col.index[i] in dimensions:
-                print("\n! WARNING: all values in {} are NaN, it will be deleted for the plot!".format(col.index[i]) )
-                dimensions.pop(dimensions.index((col.index[i])))
+            if col.iloc[i] and col.index[i] in dimensions:
+                raise PlotError("All values in {} are NaN, it will be deleted for the plot!".format(col.index[i]))
 
-        print("#")
-
-        # fig = px.scatter_matrix(data,
-        #     dimensions = dimensions,
-        #     color = keyParam,
-        #     symbol= keyParam,
-        #     title = self.title,
-        #     labels={col:col.replace('_', ' ') for col in data.columns})
-        # fig.update_traces(diagonal_visible=False)
-        # fig.show()
-
+        sns.set_style('whitegrid')
         fig = sns.pairplot(data=data_new,
                         hue=self.key_param,
                         vars=dimensions,
                         palette="vlag",
                         diag_kind='kde',
-                        height=5)
+                        height=8)
+
+        for ax in fig.axes.flatten():
+            if ax is not None:
+                name = ax.get_ylabel()
+                if name: ax.set_ylim(bottom=min(self.parameters[name]['domain']))
 
         # plt.suptitle(self.title, size=self._fontSize)
         fig.savefig(self.save_name, dpi=self.dpi)
-        print("# {} has been saved.".format(self.file_name))
+        print("# {} has been saved in {}.".format(self.file_name+'.png', self.out_dir))
 
     def draw_histplot(self):
         """
@@ -482,38 +594,34 @@ class DrawConfigs(DrawMethods):
 
         param_names = []
         param_types = []
-        if self.multi_params is not None:
-            for x in self.multi_params.split(','):
-                param_names.append(x)
+        if len(self.multi_params) != 0:
+            param_names.extend(self.multi_params)
         else:
             for x in self.parameters.keys():
-                # if self.parameters[x]['type'] != 'c':
+                if x in [".ID", ".PARENT", "slice"]: continue
                 param_names.append(x)
 
         for x in param_names:
             param_types.append(self.parameters[x]['type'])
         
-        print("\n# The self.parameters selected to be visualised: \n#  {}".format(param_names))
-        print("\n# The type of selected self.parameters:  \n#  {}".format(param_types))
+        print("\n# The parameters selected to be visualised: \n#  {}".format(', '.join(param_names)))
+        print("\n# The type of selected parameters:  \n#  {}".format(', '.join(param_types)))
 
         data_new = self.data.copy()
 
-        for name in self.parameters.keys():
+        for name in param_names:
             per = list(self.data[name]).count('null')/len(self.data)
             if per == float(1):
-                print("\n! WARNING: all values in {} are 'null', it will be deleted for the plot!".format(name))
-                param_names.pop(param_names.index(name))
+                raise PlotError("All values in {} are 'null', it will be deleted for the plot!".format(name))
             elif per > 0:
                 data_new[name].replace('null', np.nan, inplace=True)
 
         col = data_new.count() == 0
         for i in range(len(col)):
-            if col[i] and col.index[i] in param_names:
-                print("\n! WARNING: all values in {} are NaN, it will be deleted for the plot!".format(col.index[i]) )
-                param_names.pop(param_names.index((col.index[i])))
+            if col.iloc[i] and col.index[i] in param_names:
+                raise PlotError("All values in {} are NaN, it will be deleted for the plot!".format(col.index[i]))
 
         print("#")
-
 
         if not self.slice:
             num = 8
@@ -523,7 +631,7 @@ class DrawConfigs(DrawMethods):
             start = 0
             for i in range(0, page_num):
                 fig, axis = plt.subplots(2, 4, sharey=False, sharex=False)
-                plt.subplots_adjust(hspace=0.5, wspace=0.4, bottom=0.2)
+                plt.subplots_adjust(hspace=0.3, wspace=0.4, bottom=0.2)
                 title = '\nPage ' + str(i+1) + ' of ' + str(page_num)
                 
                 if start+num-1 <= len(param_names):
@@ -542,22 +650,20 @@ class DrawConfigs(DrawMethods):
                         name = params['params%s' % i][idx]
                         if self.parameters[name]['type'] != 'c':
                             fig = sns.histplot(data=data_new.sort_values(by=name, na_position='last', ascending=True),
-                                            x=name, stat='frequency', kde=True, 
+                                            x=name, stat='percent', kde=True, 
                                             ax=ax)
                             fig = sns.rugplot(data=data_new.sort_values(by=name, na_position='last', ascending=True),
                                             x=name, ax=ax)
                         else:
                             fig = sns.histplot(data=data_new.sort_values(by=name, na_position='last', ascending=True),
-                                                x=name, stat='frequency', kde=False, 
+                                                x=name, stat='percent', kde=False, 
                                                 ax=ax)
                         if len(name) > 25:
                             name = re.sub(r"(.{25})", "\\1\n", name)
                         if column != 0:
                             fig.set_ylabel('')
-                        if self.title:
-                            fig.set_xlabel(self.title)
-                        else:
-                            fig.set_xlabel('')
+                        ax.xaxis.set_label_position('top')
+                        fig.set_xlabel(name, rotation=0)
                     else:
                         ax.axis('off')
 
@@ -605,10 +711,25 @@ class DrawConfigs(DrawMethods):
                     else:
                         fig = sns.histplot(data=data_new[data_new['slice'] == j].sort_values(by=name, na_position='last', ascending=True),
                                             x=name, stat='probability', kde=False, ax=ax)
+
                     ax.set_ylabel(f'  {j}', rotation=0)
                     ax.yaxis.set_label_position('right')
 
-                fig.text(-0.1, 5, 'Probability', horizontalalignment='left', verticalalignment='baseline', rotation='vertical', transform=ax.transAxes)
+                    yticks = ax.get_yticks()
+                    ytick_labels = [''] * len(yticks)
+                    ytick_labels[1] = str(yticks[1])
+                    ax.set_yticks(yticks)
+                    ax.set_yticklabels(ytick_labels)
+
+                b,t = fig.get_ylim()
+                fig.text(-0.06, 0.6*(t-b)*max_slice, 'Probability', 
+                        ha='center', va='center', 
+                        rotation='vertical', 
+                        transform=ax.transAxes)
+                fig.text(1.04, 0.6*(t-b)*max_slice, 'slice', 
+                        ha='center', va='center', 
+                        rotation='vertical', 
+                        transform=ax.transAxes)
                 plot = fig.get_figure()
                 file_name = file_names['plot%s' % i]
                 save_name = os.path.join(self.out_dir, file_name)
@@ -627,42 +748,37 @@ class DrawConfigs(DrawMethods):
 
         param_names = []
         param_types = []
-        if self.multi_params is not None:
-            for x in self.multi_params:
-                if self.parameters[x]['type'] != 'c':
-                    param_names.append(x)
-            if len(param_names) == 0:
-                raise OptionError("Required self.parameters must not categorical for boxplot.")
+        if len(self.multi_params) != 0:
+            param_names.extend(self.multi_params)
         else:
-            for k, i in self.parameters.items():
-                if i['type'] != 'c':
-                    param_names.append(k)
+            for x in self.parameters.keys():
+                if x in [".ID", ".PARENT", "slice"]: continue
+                if self.parameters[x]['type'] == 'c': continue
+                param_names.append(x)
 
         for x in param_names:
             param_types.append(self.parameters[x]['type'])
         
-        print("\n# The self.parameters selected to be visualised: \n#  {}".format(param_names))
-        print("\n# The type of selected self.parameters:  \n#  {}".format(param_types))
+        print("\n# The parameters selected to be visualised: \n#  {}".format(', '.join(param_names)))
+        print("\n# The type of selected parameters:  \n#  {}".format(', '.join(param_types)))
 
         data_new = self.data.copy()
 
-        for name in self.parameters.keys():
+        for name in param_names:
             per = list(self.data[name]).count('null')/len(self.data)
             if per == float(1):
-                print("\n! WARNING: all values in {} are 'null', it will be deleted for the plot!".format(name))
-                param_names.pop(param_names.index(name))
+                raise PlotError("All values in {} are 'null', it will be deleted for the plot!".format(name))
             elif per > 0:
                 data_new[name].replace('null', np.nan, inplace=True)
 
         col = data_new.count() == 0
         for i in range(len(col)):
             if col.iloc[i] and col.index[i] in param_names:
-                print("\n! WARNING: all values in {} are NaN, it will be deleted for the plot!".format(col.index[i]) )
-                param_names.pop(param_names.index((col.index[i])))
+                raise PlotError("All values in {} are NaN, it will be deleted for the plot!".format(col.index[i]))
 
         print("#")
 
-        if self.multi_params is None:
+        if not self.slice:
             num = 6
             page_num = math.ceil(len(param_names)/num)
             params = locals()
@@ -670,7 +786,7 @@ class DrawConfigs(DrawMethods):
             start = 0
             for i in range(0, page_num):
                 fig, axis = plt.subplots(2, 3, sharey=False, sharex=False)
-                plt.subplots_adjust(hspace=0.5, wspace=0.4, bottom=0.2)
+                plt.subplots_adjust(hspace=0.3, wspace=0.2, bottom=0.2)
                 title = '\nPage ' + str(i+1) + ' of ' + str(page_num)
                 
                 if start+num-1 <= len(param_names):
@@ -687,17 +803,21 @@ class DrawConfigs(DrawMethods):
                     ax = axis[row, column]
                     if idx < page_plots:
                         name = params['params%s' % i][idx]
-                        fig = sns.boxplot(data=data_new,
-                            x=name, y='slice', width=0.5, fliersize=self._fliersize, linewidth=0.5,
-                            orient='h', palette="vlag", hue='slice', ax=ax)
+                        fig = sns.boxplot(
+                            data=data_new, x=name, y='slice',
+                            width=0.5, linewidth=0.5, fliersize=self._fliersize,
+                            showfliers=self.sf, showmeans=self.sm,
+                            meanprops={"marker": "+",
+                                       "markeredgecolor": "black",
+                                       "markersize": "8"},
+                            orient='h', palette="vlag", hue='slice',
+                            legend=False, ax=ax)
                         if len(name) > 25:
                             name = re.sub(r"(.{25})", "\\1\n", name)
                         if column != 0:
                             fig.set_ylabel('')
-                        if self.title:
-                            fig.set_xlabel(self.title)
-                        else:
-                            fig.set_xlabel('')
+                        ax.xaxis.set_label_position('top')
+                        fig.set_xlabel(name, rotation=0)
                     else:
                         ax.axis('off')
 
@@ -746,7 +866,7 @@ class DrawConfigs(DrawMethods):
 
                 # plt.suptitle(self.title, size=self._fontSize)
                 plot.savefig(save_name, dpi=self.dpi)
-                print("# {} has been saved.".format(file_name))
+                print("# {} has been saved in {}.".format(file_name, self.out_dir))
 
     def draw_heatmap(self):
         """
@@ -888,7 +1008,8 @@ class DrawExps(DrawMethods):
         fig = getattr(sns, method)(
             x=x_lable, y=y_lable, data=data, width=0.5,
             showfliers=self.sf, fliersize=self._fliersize,
-            linewidth=0.5, palette="vlag", hue=x_lable)
+            linewidth=0.5, palette="vlag", hue=x_lable,
+            legend=False,)
 
         if self.st:
             self.statistic_info(data, self.file_name, fig)

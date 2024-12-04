@@ -1,4 +1,5 @@
 import copy
+from datetime import datetime
 import glob
 import os
 import sys
@@ -185,24 +186,50 @@ class PlotOptions:
         elif self.drawMethod.value is None:
             raise CE.ParameterValueError("Option 'drawMethod' must be provided!")
 
-        if self.drawMethod.value in "(pairplot)" and (self.keyParameter.value is None
+        if self.drawMethod.value in ("pairplot") and (self.keyParameter.value is None
             or len(self.keyParameter.value.split(',')) > 1):
             raise CE.ParameterValueError("Parameter 'keyParameter'(-k) must be provided here!")
 
-        if self.drawMethod.value not in "(parallelcoord, piechart, \
-            pairplot, histplot, jointplot, boxplot, heatmap)" and self.multiParameters.value is not None:
+        if self.drawMethod.value not in ("parallelcoord", "parallelcat", "piechart", \
+            "pairplot", "histplot", "jointplot", "boxplot", "heatmap") and self.multiParameters.value is not None:
             raise CE.ParameterValueError("Parameter 'multiParameters'(-m) should not be provided here!")
+        
+        if self.drawMethod.value in ("parallelcoord", "parallelcat", "piechart", "pairplot", "histplot", "jointplot", "boxplot", "heatmap"):
+            if not self.dataType.is_set(): self.dataType.set_value('c')
+            self.test.set_value(False)
+            self.training.set_value(True)
+
+        if self.drawMethod.value in ("parallelcoord"):
+            self.slice.set_value(True)
       
-        if self.drawMethod.value in "(jointplot, parallelcat)":
+        if self.drawMethod.value in ("jointplot"):
             if self.multiParameters.value is None or len(self.multiParameters.value.split(',')) != 2:
                 raise CE.ParameterValueError("When '{}' is called, two parameter names must be provided!".format(self.drawMethod.value))
 
-        if self.drawMethod.value in "(heatmap)":
+        if self.drawMethod.value in ("heatmap"):
             if self.multiParameters.value is None or len(self.multiParameters.value.split(',')) > 2:
                 raise CE.ParameterValueError("When '{}' is called, one or two parameter names must be provided!".format(self.drawMethod.value))
 
-        if self.statisticalTest.value in (True, "True", "ture") and self.drawMethod.value not in "(boxplot, violinplot)":
+        if self.statisticalTest.value in (True, "True", "ture") and self.drawMethod.value not in ("boxplot", "violinplot"):
             raise CE.ParameterValueError("When '{}' is enable, drawMethod must be in (boxplot, violinplot)!".format(self.statisticalTest.value))
+
+        method_dict = {
+            "boxplot": "box",
+            "violinplot": "violin",
+            "parallelcoord": "coord",
+            "parallelcat": "cat",
+            "piechart": "pie",
+            "pairplot": "pair",
+            "histplot": "hist",
+            "jointplot": "joint",
+            "heatmap": "heat"
+        }
+
+        if not self.fileName.is_set():
+            current_time = datetime.now()
+            formatted_time = current_time.strftime("_%y%m%d%H%M%S")
+            self.fileName.set_value(f"{self.drawMethod.value}{formatted_time}")
+            # self.fileName.set_value(f"{method_dict[self.drawMethod.value]}{formatted_time}")
 
         if self.configurations.value:
             self.configurations.set_value([int(x) for x in self.configurations.value])

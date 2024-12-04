@@ -29,9 +29,9 @@ def start_cmdline(arguments=None, console: bool=True):
         CracePlot(options)
     except Exception as e:
         if any(isinstance(e, cls) for cls in [x[1] for x in inspect.getmembers(CE, inspect.isclass)]):
-           pass
-            # err_info = traceback.format_exc()
-            # print(err_info)
+        #    pass
+            err_info = traceback.format_exc()
+            print(err_info)
         else:
             print("\nERROR: There was an error while executing crace plot:")
             err_info = traceback.format_exc()

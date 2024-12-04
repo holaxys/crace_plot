@@ -49,7 +49,7 @@ class ReadCraceResults:
 
         self.elites = {}
 
-        if self._single == True and self._avg == True:
+        if self._single == True or self._avg == True:
             self.exp_names = []
             self.results = {}
         elif self._single == False or not self._avg:

@@ -73,7 +73,7 @@
         "type": "s",
         "short": "-f",
         "long": "--file-name",
-        "default": "plot",
+        "default": "",
         "section":"Plot file",
         "domain": "",
         "critical": 0,
@@ -103,6 +103,17 @@
         "critical": 0,
         "description": "The origin of data used for drawing plot(s).",
         "vignettes": "What type of the data used for drawing plot(s), which includes the experiments of configurations on instances from\n training or test and the details of configurations.\n"
+    },
+    {
+        "name": "slice",
+        "type": "e",
+        "short": "-sl",
+        "long": "--slice",
+        "default": null,
+        "section": "Draw plot",
+        "critical": 0,
+        "description": "Use slice or not when draw plot for configurations(parameters).",
+        "vignettes": "Use slice or not when draw plot for configurations(parameters). It's True when use boxplot and heatmap when reading all configurations."
     },
     {
         "name": "numConfigurations",
