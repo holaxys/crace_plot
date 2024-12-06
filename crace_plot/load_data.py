@@ -1,6 +1,3 @@
-import copy
-import glob
-import json
 import logging
 import os
 import sys
@@ -10,6 +7,7 @@ import crace.containers
 import crace.containers.parameters
 from crace_plot.plot_options import PlotOptions
 from crace_plot.draw import DrawExps, DrawConfigs
+from crace_plot.utils import set_logger
 import numpy as np
 import pandas as pd
 
@@ -123,14 +121,6 @@ class ReadExperiments(ReadCraceResults):
         self._test = False if options.training.value else True
         self._file_name = options.fileName.value
 
-        l = logging.getLogger('st_log')
-        filehandler = logging.FileHandler(self._directory + "/" + self._file_name + '.log', mode='w')
-        filehandler.setLevel(0)
-        streamhandler = logging.StreamHandler()
-        l.setLevel(logging.DEBUG)
-        l.addHandler(filehandler)
-        l.addHandler(streamhandler)
-
         self.load_data()
         self.draw_plot()
 
@@ -139,7 +129,7 @@ class ReadExperiments(ReadCraceResults):
         load experiments information
         """
         self.exp_names = [os.path.relpath(os.path.abspath(x), self._directory) for x in self.exp_folders]
-        print(f"TEST execdir {self.exec_dir}, folders {self.exp_folders}, names {self.exp_names}, common {self._directory}")
+        # print(f"TEST execdir {self.exec_dir}, folders {self.exp_folders}, names {self.exp_names}, common {self._directory}")
 
         if not self._single and self._avg:
             # load data from multiple results
@@ -172,6 +162,7 @@ class ReadExperiments(ReadCraceResults):
                 print("#")
             print('#------------------------------------------------------------------------------')
 
+            set_logger('st_log', self._directory + "/" + self._file_name + '.log')
             l = logging.getLogger('st_log')
             l.debug(f"# All results:\n{self.results}")
             l.debug(f"\n# All medians: \n{self.results['med'].groupby(self.results['folder']).median().to_string(index=True, header=False)}")
@@ -227,7 +218,10 @@ class ReadExperiments(ReadCraceResults):
                 name = self.exp_names[i]
                 tmp_results = crace.crace_cmdline(f'--read, {folder}, --readlogs_in_plot, 1')
                 df = tmp_results.training.data
-                self._all_elites[name] = [x[0] for x in tmp_results.training.slice['elites']]
+                if self.options.slice.value:
+                    self._all_elites[name] = [x[0] for x in tmp_results.training.slice['elites']]
+                else:
+                    self._all_elites[name] = tmp_results.all_elites
 
                 if self._selected_configs:
                     experiments = df[df['configuration_id'].isin(self._selected_configs)].reset_index(drop=True)
@@ -418,7 +412,6 @@ class ReadConfigurations(ReadCraceResults):
         """
         call the function to draw distplot
         """
-
         self.dc.draw_boxplot()
 
     def heatmap(self):

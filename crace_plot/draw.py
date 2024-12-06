@@ -25,9 +25,10 @@ from statannotations.Annotator import Annotator
 from statsmodels.formula.api import ols
 
 from crace.errors import OptionError, PlotError
+from crace_plot.utils import set_logger
 
 sns.color_palette("vlag", as_cmap=True)
-sns.set_style('white')
+# sns.set_style('white')
 # pd.set_option('display.max_rows', None)
 # pd.set_option('display.max_columns', None)
 pd.set_option('display.expand_frame_repr', False)
@@ -73,8 +74,9 @@ class DrawMethods:
         self.st = options.statisticalTest.value
         self.so = options.showOrigins.value
         self.sa = options.showAnnotators.value
+        self.size = options.size.value
 
-        self.set_layout(options.size.value)
+        self.set_layout(self.size)
 
     def set_layout(self, size):
         if size in ('l', 'large'): column = 1
@@ -100,9 +102,9 @@ class DrawMethods:
 
         # large: plot used in one column
         if column == 1:
-            sns.set_theme(rc={'figure.figsize':(fig_width,fig_height)}, font_scale=1.5) 
-            fontSize = 17
-            fliersize = 2
+            sns.set_theme(rc={'figure.figsize':(fig_width,fig_height)}, font_scale=1.3) 
+            fontSize = 15
+            fliersize = 1.5
 
         # mid: plots used in double columns
         if column == 2:
@@ -119,8 +121,8 @@ class DrawMethods:
         self._fontSize = fontSize
         self._fliersize = fliersize
 
-        fig, axis = plt.subplots()  # pylint: disable=undefined-variable
-        fig.subplots_adjust(hspace=0.3, wspace=0.2, bottom=0.2)
+        # fig, axis = plt.subplots()  # pylint: disable=undefined-variable
+        # fig.subplots_adjust(hspace=0.3, wspace=0.2, bottom=0.2)
 
 class DrawConfigs(DrawMethods):
     def __init__(self, options, data, exp_name, elite_ids, parameters, exp_folder) -> None:
@@ -323,7 +325,7 @@ class DrawConfigs(DrawMethods):
         col1 = data_new.count() == 0
         for i in range(len(col1)):
             name = col1.index[i]
-            per = list(data_new[name]).count('null')/float(num)
+            per = data_new[name].isna().sum() / float(num)
             if col1.iloc[i]:
                 print("\n! WARNING: all values in {} are NaN, it will be deleted for the plot!".format(name) )
                 new_parameters.pop(col1.index[i])
@@ -556,7 +558,7 @@ class DrawConfigs(DrawMethods):
         data_new = self.data.copy()
 
         for name in self.parameters.keys():
-            per = list(self.data[name]).count('null')/len(self.data)
+            per = data_new[name].isna().sum() / float(len(data_new))
             if per == float(1):
                 raise PlotError("All values in {} are 'null', it will be deleted for the plot!".format(name))
             elif per > 0:
@@ -610,7 +612,7 @@ class DrawConfigs(DrawMethods):
         data_new = self.data.copy()
 
         for name in param_names:
-            per = list(self.data[name]).count('null')/len(self.data)
+            per = data_new[name].isna().sum() / float(num)
             if per == float(1):
                 raise PlotError("All values in {} are 'null', it will be deleted for the plot!".format(name))
             elif per > 0:
@@ -679,13 +681,16 @@ class DrawConfigs(DrawMethods):
                 
                 # plt.suptitle(self.title, size=self._fontSize)
                 plot.savefig(save_name, dpi=self.dpi)
-                print("# {} has been saved in {}.".format(file_name, self.out_dir))
+                print("# {} has been saved in {}.".format(file_name+'.png', self.out_dir))
 
         else:
             page_num = len(param_names)
             file_names = locals()
             for i in range(0, page_num):
-                file_names['plot%s' % i] = self.file_name.split('.')[0]+str(i)
+                if len(self.multi_params) != 1:
+                    file_names['plot%s' % i] = self.file_name.split('.')[0]+str(i)
+                else:
+                    file_names['plot%s' % i] = self.file_name.split('.')[0]
                 name = param_names[i]
 
                 max_slice = max(data_new['slice'])
@@ -736,7 +741,7 @@ class DrawConfigs(DrawMethods):
                 
                 # plt.suptitle(self.title, size=self._fontSize)
                 plot.savefig(save_name, dpi=self.dpi)
-                print("# {} has been saved in {}.".format(file_name, self.out_dir))
+                print("# {} has been saved in {}.".format(file_name+'.png', self.out_dir))
 
     def draw_boxplot(self):
         """
@@ -765,7 +770,7 @@ class DrawConfigs(DrawMethods):
         data_new = self.data.copy()
 
         for name in param_names:
-            per = list(self.data[name]).count('null')/len(self.data)
+            per = data_new[name].isna().sum() / float(num)
             if per == float(1):
                 raise PlotError("All values in {} are 'null', it will be deleted for the plot!".format(name))
             elif per > 0:
@@ -833,7 +838,7 @@ class DrawConfigs(DrawMethods):
 
                 # plt.suptitle(self.title, size=self._fontSize)
                 plot.savefig(save_name, dpi=self.dpi)
-                print("# {} has been saved in {}.".format(file_name, self.out_dir))
+                print("# {} has been saved in {}.".format(file_name+'.png', self.out_dir))
         else:
             page_num = len(param_names)
             file_names = locals()
@@ -866,7 +871,7 @@ class DrawConfigs(DrawMethods):
 
                 # plt.suptitle(self.title, size=self._fontSize)
                 plot.savefig(save_name, dpi=self.dpi)
-                print("# {} has been saved in {}.".format(file_name, self.out_dir))
+                print("# {} has been saved in {}.".format(file_name+'.png', self.out_dir))
 
     def draw_heatmap(self):
         """
@@ -877,70 +882,81 @@ class DrawConfigs(DrawMethods):
         sns.set_theme(font_scale=0.9)
 
         param_names = []
-        param_types = []
-        for x in self.multi_params.split(','):
-            param_names.append(x)
+        if len(self.multi_params) != 0:
+            param_names.extend(self.multi_params)
 
         for x in param_names:
-            param_types.append(self.parameters[x]['type'])
+            if self.parameters[x]['type'] != 'c':
+                raise OptionError(f"Provided parameter {x} for drawing heatmap should be categorical.")
         
-        print("\n# The self.parameters selected to be visualised: \n#  {}".format(param_names))
-        print("\n# The type of selected self.parameters:  \n#  {}".format(param_types))
+        print("\n# The parameters selected to be visualised: \n#  {}".format(', '.join(param_names)))
 
         data_new = self.data.copy()
-        for name in self.parameters.keys():
-            per = list(self.data[name]).count('null')/len(self.data)
+        for name in param_names:
+            per = data_new[name].isna().sum() / float(len(data_new))
             if per == float(1):
                 print("\n! WARNING: all values in {} are 'null', it will be deleted for the plot!".format(name))
                 param_names.pop(param_names.index(name))
             elif per > 0:
-                data_new[name].replace('null', np.nan, inplace=True)
+                data_new[name] = data_new[name].replace('None', np.nan)
+                data_new[name] = data_new[name].fillna(np.nan)
 
         col = data_new.count() == 0
         for i in range(len(col)):
-            if col[i] and col.index[i] in param_names:
-                print("\n! WARNING: all values in {} are NaN, it will be deleted for the plot!".format(col.index[i]) )
-                param_names.pop(param_names.index((col.index[i])))
+            if col.iloc[i] and col.index[i] in param_names:
+                raise PlotError("All values in {} are NaN, it will be deleted for the plot!".format(col.index[i]))
 
         print("#")
 
         if len(param_names) < 2:
-            pivot_table = data_new.pivot_table(index='slice', columns=param_names[0], values='configuration_id', aggfunc='count')
+            pivot_table = data_new.pivot_table(index='slice', columns=param_names[0], values='.ID', aggfunc='count')
         else:
-            pivot_table = data_new.pivot_table(index=param_names[0], columns=param_names[1], values='configuration_id', aggfunc='count')
+            pivot_table = data_new.pivot_table(index=param_names[0], columns=param_names[1], values='.ID', aggfunc='count')
         fig = sns.heatmap(pivot_table, annot=True, cmap='PuBu', fmt="g") 
         fig.get_figure().savefig(self.save_name, dpi=self.dpi)
-        print("# {} has been saved.".format(self.file_name))
+        print("# {} has been saved in {}.".format(self.file_name+'.png', self.out_dir))
 
     def draw_jointplot(self):
         """
         Use provided data to draw jointplot
         """
-
         dimensions = []
-        if self.multi_params not in (None, 'null'):
-            for x in self.multi_params.split(','):
-                if self.parameters[x]['type'] != 'c':
-                    dimensions.append(x)
-                else:
-                    raise OptionError("!!Categorical parameter {} is not supportable here.".format(x))
+        if len(self.multi_params) > 0:
+            dimensions.extend(self.multi_params)
+        key = self.key_param if self.key_param else None
+        param_names = dimensions+[key] if key else dimensions
+        param_types = []
+        for i, x in enumerate(param_names):
+            if i == 2 and self.parameters[x]['type'] != 'c':
+                raise OptionError(f"Provided key parameter {x} for drawing jointplot must be categorical.")
+            if i < 2 and self.parameters[x]['type'] == 'c':
+                raise OptionError(f"Provided parameter {x} for drawing jointplot should be categorical.")
+            param_types.append(self.parameters[x]['type'])
 
-        data = pd.DataFrame(data=data, columns=dimensions)
-        # x=list(map(float, data[dimensions[0]]))
-        # y=list(map(float, data[dimensions[1]]))
-        x=dimensions[0]
-        y=dimensions[1]
+        print("\n# The parameters selected to be visualised: \n#  {}".format(', '.join(param_names)))
+        print("\n# The type of selected parameters:  \n#  {}".format(', '.join(param_types)))
 
+        data = self.data[param_names]
+
+        sns.set_style("white")
         fig = sns.jointplot(
-            x=x, 
-            y=y,
             data=data,
-            kind='hex',
-            space=0.1,
-            ratio=4)
+            x=dimensions[0], 
+            y=dimensions[1],
+            hue=key if key else None,
+        )
+        fig.fig.set_facecolor('white')
+        if key:
+            legend = fig.ax_joint.legend(fontsize=self._fontSize*0.6, title_fontsize=self._fontSize*0.7, loc='upper right', bbox_to_anchor=(1, 1))
+            legend.set_title(key)
+            legend.get_frame().set_alpha(0.5)
+
+        fig.ax_joint.set_facecolor('white')
+        fig.ax_marg_x.set_facecolor('white')
+        fig.ax_marg_y.set_facecolor('white')
         
         fig.savefig(self.save_name, dpi=self.dpi)
-        print("# {} has been saved.".format(self.file_name))
+        print("#\n# {} has been saved in {}.".format(self.file_name+'.png', self.out_dir))
 
     def count_values(self, column):
         data = list(column)
@@ -1012,6 +1028,7 @@ class DrawExps(DrawMethods):
             legend=False,)
 
         if self.st:
+            set_logger('st_log', self._directory + "/" + self._file_name + '.log')
             self.statistic_info(data, self.file_name, fig)
 
         # show original points
@@ -1027,7 +1044,7 @@ class DrawExps(DrawMethods):
         plot = fig.get_figure()
         # plt.suptitle(self.title, size=self._fontSize)
         plot.savefig(self.save_name, dpi=self.dpi)
-        print("#\n# {} has been saved in {}.".format(self.file_name, self.out_dir))
+        print("#\n# {} has been saved in {}.".format(self.file_name+'.png', self.out_dir))
 
     def draw_tuning(self, method):
         """
@@ -1088,16 +1105,31 @@ class DrawExps(DrawMethods):
         fig, axis = plt.subplots()  # pylint: disable=undefined-variable
         fig.subplots_adjust(hspace=0.3, wspace=0.2, bottom=0.2)
 
+        # sns.set_style('white')
+        # palette = sns.color_palette(["white"], len(elite_labels))
+        palette = sns.color_palette("vlag", len(elite_labels))
         # draw the plot
         fig = getattr(sns, method)(
             x=x_lable, y=y_lable, data=data,
             order=elite_ids_sorted, hue=x_lable, legend=False,
-            width=0.5, showfliers=self.sf, fliersize=self._fliersize,
+            width=.5, showfliers=self.sf, fliersize=self._fliersize,
             showmeans=self.sm,
             meanprops={"marker": "+",
                         "markeredgecolor": "black",
                         "markersize": "8"},
-            linewidth=0.5, palette="vlag")
+            palette=palette,
+            linewidth=1,)
+        #     boxprops=dict(edgecolor='black'),
+        #     medianprops=dict(color='black'),
+        #     whiskerprops=dict(color='black'),
+        #     capprops=dict(color='black')
+        #     )
+        # axis.set_facecolor('white')
+        # for spine in axis.spines.values():
+        #     spine.set_visible(True)
+        #     spine.set_color('black')
+        #     spine.set_linewidth(1)
+        # axis.grid(False)
 
         if max(results_count_sorted.values()) <= 30:
             fig = sns.stripplot(
@@ -1119,7 +1151,6 @@ class DrawExps(DrawMethods):
             pairs_results['configuration_id'] = pairs_results['configuration_id'].astype(int)
             pairs_results['instance_id'] = pairs_results['instance_id'].astype(int)
 
-            # p1 = sp.posthoc_wilcoxon(pairs_results, val_col='quality', group_col='configuration_id')
             # p_values after multiple test correction
             p2 = sp.posthoc_wilcoxon(pairs_results, val_col='quality', group_col='configuration_id',
                                     p_adjust='fdr_bh')
@@ -1155,7 +1186,10 @@ class DrawExps(DrawMethods):
 
         # add instance numbers
         _, ymax = axis.get_ylim()
-        plt.text(x=-0.5,y=ymax,s="ins_num",ha='right',va='top',size=self._fontSize,color='blue')
+        # xticks = fig.get_xticklabels()
+        # xmax, _ = xticks[-1].get_position()
+        _, xmax = axis.get_xlim()
+        plt.text(x=xmax,y=ymax,s="Nins",ha='right',va='bottom',size=self._fontSize,color='blue')
         i=0
         for x in results_count_sorted.values():
             plt.text(x=i, y=ymax,s=x,ha='center',va='top',size=self._fontSize,color='blue')
@@ -1163,7 +1197,7 @@ class DrawExps(DrawMethods):
 
         plot = fig.get_figure()
         plot.savefig(self.save_name, dpi=self.dpi)
-        print("#\n# {} has been saved in {}.".format(self.file_name, self.out_dir))
+        print("#\n# {} has been saved in {}.".format(self.file_name+'.png', self.out_dir))
 
     def statistic_info(self, data, plog, fig):
         ############################# CHECK RESULTS #############################

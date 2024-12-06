@@ -201,14 +201,10 @@ class PlotOptions:
 
         if self.drawMethod.value in ("parallelcoord"):
             self.slice.set_value(True)
-      
-        if self.drawMethod.value in ("jointplot"):
-            if self.multiParameters.value is None or len(self.multiParameters.value.split(',')) != 2:
-                raise CE.ParameterValueError("When '{}' is called, two parameter names must be provided!".format(self.drawMethod.value))
 
-        if self.drawMethod.value in ("heatmap"):
-            if self.multiParameters.value is None or len(self.multiParameters.value.split(',')) > 2:
-                raise CE.ParameterValueError("When '{}' is called, one or two parameter names must be provided!".format(self.drawMethod.value))
+        if self.drawMethod.value in ("heatmap", "jointplot"):
+            if len(self.multiParameters.value) != 2:
+                raise CE.ParameterValueError("When '{}' is called, two parameter names must be provided!".format(self.drawMethod.value))
 
         if self.statisticalTest.value in (True, "True", "ture") and self.drawMethod.value not in ("boxplot", "violinplot"):
             raise CE.ParameterValueError("When '{}' is enable, drawMethod must be in (boxplot, violinplot)!".format(self.statisticalTest.value))
